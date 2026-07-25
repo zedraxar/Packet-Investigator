@@ -1,0 +1,8 @@
+jinja2
+mypy
+pydantic
+pytest
+pytest-cov
+rich
+ruff
+typer

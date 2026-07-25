@@ -1,0 +1,34 @@
+.venv/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Tool caches and coverage
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Packaging and build artifacts
+build/
+dist/
+*.egg-info/
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Generated reports (retain the directory marker)
+reports/*
+!reports/.gitkeep
+
+# Private packet captures (retain the directory marker)
+samples/private/*
+!samples/private/.gitkeep
