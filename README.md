@@ -52,7 +52,26 @@ pytest
 
 See [docs/development.md](docs/development.md) for the complete workflow.
 
-## CLI examples
+## Capture metadata inspection
+
+The implemented `inspect` command reads basic capture metadata without
+performing diagnostic analysis:
+
+```bash
+packet-investigator inspect path/to/capture.pcapng
+packet-investigator inspect path/to/capture.pcap --json
+```
+
+It reports the resolved path, filename, extension-inferred format, byte size and
+human-readable size, packet count, first and last packet timestamps, duration,
+observed interface IDs when available, TShark version, and inspection status.
+The JSON form emits the same core metadata without terminal formatting.
+
+TShark remains the final validator of capture contents. The command does not
+inspect payloads, reconstruct conversations, diagnose protocols, or make
+ownership claims. Diagnostic packet analysis is not implemented.
+
+## Other CLI examples
 
 ```bash
 packet-investigator version
@@ -64,11 +83,12 @@ python -m packet_investigator version
 
 Packet captures can contain credentials, personal data, internal addresses, and
 sensitive payloads. Keep captures local, use only legally authorized data, and
-do not commit private captures. Any capture intentionally committed must be
+never commit sensitive captures. Any capture intentionally committed must be
 synthetic, sanitized, authorized, and free of credentials or sensitive payloads.
 
 ## Current project status
 
-Phase 2 provides the package scaffold, CLI shell, documentation, and development
-tooling. Packet parsing, analysis, correlation, and report generation are not
+Phase 3 currently provides safe capture-file metadata inspection in addition to
+the package scaffold and development tooling. Protocol analysis, conversation
+reconstruction, ownership guidance, correlation, and report generation are not
 implemented yet.

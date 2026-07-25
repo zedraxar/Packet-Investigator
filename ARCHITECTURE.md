@@ -21,16 +21,47 @@ Every finding is expected to distinguish:
 5. **Recommended Next Capture** — the observation point most likely to reduce
    uncertainty.
 
-## Planned package responsibilities
+## Package responsibilities
 
-- `parsers`: invoke TShark and normalize capture data.
-- `models`: define typed evidence, findings, captures, and report structures.
+- `parsers`: safely invoke TShark and normalize capture metadata; richer packet
+  parsing remains planned.
+- `models`: define typed capture metadata now and evidence, findings, and report
+  structures in later phases.
 - `analyzers`: run deterministic protocol and transport analyses.
 - `correlation`: align events across multiple capture locations.
 - `ownership`: derive cautiously worded confidence assessments.
 - `reporting`: render terminal, JSON, and HTML output.
 - `utils`: hold small shared utilities without domain ownership.
 - `cli`: expose user workflows and output controls.
+
+## Implemented capture inspection boundary
+
+`CaptureMetadata` is the typed, immutable Pydantic result for basic inspection.
+It stores the resolved path, file identity and size, capture format inferred
+from the supported extension, packet count, UTC packet-boundary timestamps,
+duration, observed interface IDs, TShark version, and status. It never stores
+packet records or payloads. Empty captures consistently use a zero packet count
+and absent timestamps and duration.
+
+The reusable TShark wrapper in `parsers` owns executable discovery, path
+validation, argument construction, process execution, timeout enforcement,
+stderr sanitization, output parsing, and categorized failures. Isolating this
+boundary keeps subprocess concerns out of the CLI and gives future callers one
+safe, testable integration point. TShark is invoked directly with an argument
+list, never through a shell, and name resolution is disabled.
+
+Packet-field output is read line by line through a bounded queue. The parser
+retains only the count, first and last timestamp, and unique interface IDs, so
+memory does not grow with packet count. Stderr retention is bounded while its
+pipe is continuously drained. A monotonic deadline covers field streaming and
+process completion; timed-out or malformed executions are terminated and then
+killed if they do not exit during a short grace period.
+
+Current inspection is metadata-only. It supports `.pcap` and `.pcapng`, relies
+on TShark for final content validation, and does not expose capture-level
+metadata that is unavailable through the selected frame fields. Interface IDs
+may therefore be absent, and no protocol diagnosis, conversation
+reconstruction, ownership guidance, or packet-content analysis is performed.
 
 ## Operating modes
 
