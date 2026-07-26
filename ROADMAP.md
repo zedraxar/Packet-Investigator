@@ -141,7 +141,13 @@ Capture simultaneously at the client and firewall beginning before reproduction.
 
 ---
 
-## Phase 5 — Normalized Packet Model
+## Historical Phase 5 — Normalized Packet Model
+
+This earlier plan is superseded for implementation purposes by the
+[Phase 5 TCP Conversation Analysis specification](docs/specs/phase-5-tcp-conversation-analysis.md).
+The normalized packet and later conversation-builder concepts below remain
+useful future context, but their milestone numbers require a separate roadmap
+review.
 
 ### Goal
 
