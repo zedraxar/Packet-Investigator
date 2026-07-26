@@ -354,6 +354,7 @@ class _ConversationState:
     symptom_counts: dict[str, int] = field(default_factory=dict)
     symptom_samples: dict[str, _FrameSample] = field(default_factory=dict)
     initial_rtt_seconds: float | None = None
+    initial_rtt_inconsistent: bool = False
     optional_parse_errors: int = 0
     collection_codes: set[str] = field(default_factory=set)
     first_syn_sequence: int | None = None
@@ -452,11 +453,13 @@ class _ConversationState:
         for indicator in row.indicators:
             self.symptom_counts[indicator] += 1
             self.symptom_samples[indicator].add(row.frame_number)
-        if row.initial_rtt_seconds is not None:
+        if row.initial_rtt_seconds is not None and not self.initial_rtt_inconsistent:
             if self.initial_rtt_seconds is None:
                 self.initial_rtt_seconds = row.initial_rtt_seconds
             elif self.initial_rtt_seconds != row.initial_rtt_seconds:
-                self.collection_codes.add("TCP_INITIAL_RTT_INCONSISTENT")
+                self.initial_rtt_seconds = None
+                self.initial_rtt_inconsistent = True
+                self.collection_codes.add("TCP_TIMING_INTERPRETATION_LIMITED")
 
     def _track_opening_sequence_evidence(
         self,
@@ -724,12 +727,18 @@ class _TCPAccumulator:
                 return group
 
             seen_tuples = self._stream_tuples.get(row.stream_id, set())
-            if seen_tuples and row.tuple_key not in seen_tuples:
+            stream_conflict = bool(seen_tuples and row.tuple_key not in seen_tuples)
+            if stream_conflict:
                 self._stream_tuple_conflicts += 1
                 self._collection_codes.add("TCP_STREAM_IDENTITY_CONFLICT")
+                for (stream_id, _tuple_key), affected in self._stream_groups.items():
+                    if stream_id == row.stream_id:
+                        affected.collection_codes.add("TCP_STREAM_IDENTITY_CONFLICT")
 
             fallback = self._unique_active_fallback(row.tuple_key)
             if fallback is not None:
+                if stream_conflict:
+                    fallback.collection_codes.add("TCP_STREAM_IDENTITY_CONFLICT")
                 self._stream_tuples.setdefault(row.stream_id, set()).add(row.tuple_key)
                 fallback.stream_id = row.stream_id
                 fallback.grouping_basis = TCPGroupingBasis.STREAM_AND_TUPLE
@@ -740,7 +749,10 @@ class _TCPAccumulator:
                 self._collection_codes.add("TCP_FLOW_TRACKING_LIMIT_REACHED")
                 return None
             self._stream_tuples.setdefault(row.stream_id, set()).add(row.tuple_key)
-            return self._register(row, TCPGroupingBasis.STREAM_AND_TUPLE)
+            group = self._register(row, TCPGroupingBasis.STREAM_AND_TUPLE)
+            if stream_conflict and group is not None:
+                group.collection_codes.add("TCP_STREAM_IDENTITY_CONFLICT")
+            return group
 
         candidates = [
             group
@@ -760,7 +772,9 @@ class _TCPAccumulator:
             return self._register(row, TCPGroupingBasis.TUPLE_EPOCH)
 
         self._unusable_tcp_rows += 1
-        self._collection_codes.add("TCP_TUPLE_IDENTITY_AMBIGUOUS")
+        self._collection_codes.add("TCP_TUPLE_REUSE_AMBIGUOUS")
+        for group in candidates:
+            group.collection_codes.add("TCP_TUPLE_REUSE_AMBIGUOUS")
         return None
 
     def _unique_active_fallback(
@@ -779,10 +793,12 @@ class _TCPAccumulator:
         group: _ConversationState,
         row: _NormalizedRow,
     ) -> bool:
+        if not row.syn or row.ack:
+            return False
+        if group.initial_syn_observation is None:
+            return True
         return (
-            row.syn
-            and not row.ack
-            and group.first_syn_sequence is not None
+            group.first_syn_sequence is not None
             and row.sequence_number is not None
             and row.sequence_number != group.first_syn_sequence
         )

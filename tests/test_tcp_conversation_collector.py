@@ -201,6 +201,10 @@ def test_stream_tuple_conflict_creates_separate_groups() -> None:
     assert len(result.conversations) == 2
     assert result.stream_tuple_conflicts == 1
     assert "TCP_STREAM_IDENTITY_CONFLICT" in result.collection_codes
+    assert all(
+        "TCP_STREAM_IDENTITY_CONFLICT" in conversation.collection_codes
+        for conversation in result.conversations
+    )
 
 
 def test_missing_stream_creates_and_then_joins_unique_fallback() -> None:
@@ -245,7 +249,11 @@ def test_missing_stream_with_multiple_active_groups_is_ambiguous() -> None:
     assert len(result.conversations) == 2
     assert result.unusable_tcp_rows == 1
     assert result.untracked_conversation_rows == 1
-    assert "TCP_TUPLE_IDENTITY_AMBIGUOUS" in result.collection_codes
+    assert "TCP_TUPLE_REUSE_AMBIGUOUS" in result.collection_codes
+    assert all(
+        "TCP_TUPLE_REUSE_AMBIGUOUS" in conversation.collection_codes
+        for conversation in result.conversations
+    )
 
 
 def test_distinct_streams_assign_epochs_by_frame_not_stream_number() -> None:
@@ -286,6 +294,29 @@ def test_fallback_new_syn_sequence_creates_visible_ambiguous_epoch() -> None:
     )
 
     assert len(result.conversations) == 2
+    assert all(
+        "TCP_TUPLE_REUSE_AMBIGUOUS" in item.collection_codes
+        for item in result.conversations
+    )
+
+
+def test_fallback_syn_after_midstream_creates_visible_ambiguous_epoch() -> None:
+    result = _collect(
+        [
+            _row(frame_number=1, stream_id="", payload_length="40"),
+            _row(
+                frame_number=2,
+                stream_id="",
+                syn="1",
+                ack="0",
+                flags="0x0002",
+                sequence_number="100",
+            ),
+        ]
+    )
+
+    assert len(result.conversations) == 2
+    assert [item.identity.epoch for item in result.conversations] == [1, 2]
     assert all(
         "TCP_TUPLE_REUSE_AMBIGUOUS" in item.collection_codes
         for item in result.conversations
@@ -457,6 +488,21 @@ def test_derived_indicators_and_initial_rtt_are_aggregated_separately() -> None:
     assert counts["duplicate_ack"] == 1
     assert counts["out_of_order"] == 0
     assert conversation.initial_rtt_seconds == 0.025
+
+
+def test_inconsistent_initial_rtt_is_not_retained_as_a_measurement() -> None:
+    result = _collect(
+        [
+            _row(frame_number=1, initial_rtt="0.025"),
+            _row(frame_number=2, initial_rtt="0.050"),
+            _row(frame_number=3, initial_rtt="0.025"),
+        ]
+    )
+
+    conversation = result.conversations[0]
+
+    assert conversation.initial_rtt_seconds is None
+    assert "TCP_TIMING_INTERPRETATION_LIMITED" in conversation.collection_codes
 
 
 def test_retransmission_subtype_increments_aggregate_once() -> None:

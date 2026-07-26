@@ -828,6 +828,7 @@ def _append_symptom_findings(
             )
         )
     raw_zero_frames = dict(conversation.flag_observations)["raw_zero_window"]
+    raw_zero_count = dict(conversation.flag_counts)["raw_zero_window"]
     raw_window_supported = (
         "tcp.window_size_value" in collection.capabilities.supported_optional_raw
     )
@@ -847,7 +848,7 @@ def _append_symptom_findings(
                 TCPEvidenceProvenance.TSHARK_DERIVED,
                 {
                     "zero_window_indicator_frames": symptoms["zero_window"],
-                    "raw_zero_window_frames": len(raw_zero_frames),
+                    "raw_zero_window_frames": raw_zero_count,
                 },
                 _merge_frames(frames["zero_window"], _frames(raw_zero_frames)),
                 dependency,

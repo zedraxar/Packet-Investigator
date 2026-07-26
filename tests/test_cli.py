@@ -30,11 +30,12 @@ def test_root_version_option() -> None:
 
 
 def test_info() -> None:
-    """The info command clearly identifies the scaffold status."""
+    """The info command accurately describes the implemented scope."""
     result = runner.invoke(cli.app, ["info"])
 
     assert result.exit_code == 0
-    assert "analysis is not implemented" in result.stdout
+    assert "deterministic TCP conversation analysis" in result.stdout
+    assert "does not provide root-cause or ownership conclusions" in result.stdout
 
 
 def _metadata(tmp_path: Path) -> CaptureMetadata:

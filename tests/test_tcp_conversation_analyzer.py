@@ -679,6 +679,26 @@ def test_zero_window_requires_raw_corroboration_when_available() -> None:
     assert "TCP_ZERO_WINDOW_OBSERVED" in with_raw
 
 
+def test_zero_window_evidence_count_is_exact_when_frames_are_sampled() -> None:
+    rows = [
+        _row(
+            frame,
+            window=0,
+            indicators={"tcp.analysis.zero_window": "1"},
+        )
+        for frame in range(1, 11)
+    ]
+
+    finding = next(
+        finding
+        for finding in _analyze(rows).conversations[0].findings
+        if finding.code == "TCP_ZERO_WINDOW_OBSERVED"
+    )
+
+    assert finding.evidence.values["raw_zero_window_frames"] == 10
+    assert len(finding.evidence.representative_frames) == 8
+
+
 def test_one_way_payload_requires_both_visible_directions() -> None:
     one_direction = _finding_codes([_row(1, payload_length=20)])
     both_directions = _finding_codes(
@@ -851,6 +871,28 @@ def test_tracking_limit_creates_report_limitation_and_limited_status() -> None:
     assert tuple(item.code for item in report.limitations)[0] == (
         "TCP_FLOW_TRACKING_LIMIT_REACHED"
     )
+
+
+def test_stream_tuple_conflict_limits_each_affected_conversation() -> None:
+    evidence = _collection(
+        [
+            *_complete_rows(),
+            _row(8, stream_id="0", source_port=49_153, payload_length=10),
+        ]
+    )
+
+    report = _analyze([], collection=evidence)
+
+    assert all(
+        conversation.status is TCPConversationStatus.LIMITED
+        for conversation in report.conversations
+    )
+    assert all(
+        "TCP_STREAM_IDENTITY_CONFLICT"
+        in {limitation.code for limitation in conversation.limitations}
+        for conversation in report.conversations
+    )
+    assert report.status is TCPAnalysisStatus.LIMITED
 
 
 def test_capture_quality_limited_sets_report_floor() -> None:

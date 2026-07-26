@@ -67,8 +67,9 @@ def version() -> None:
 def info() -> None:
     """Describe the current implementation status."""
     typer.echo(
-        "Packet Investigator is currently an initial scaffold; "
-        "packet analysis is not implemented."
+        "Packet Investigator provides offline capture metadata inspection, "
+        "capture-quality assessment, and deterministic TCP conversation analysis. "
+        "It does not provide root-cause or ownership conclusions."
     )
 
 
