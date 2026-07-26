@@ -9,10 +9,17 @@ from rich.console import Console
 from rich.table import Table
 
 from packet_investigator import __version__
-from packet_investigator.analyzers import analyze_capture_quality
+from packet_investigator.analyzers import (
+    analyze_capture_quality,
+    analyze_tcp_conversations,
+)
 from packet_investigator.models.capture import CaptureMetadata
 from packet_investigator.models.capture_quality import CaptureQualityStatus
-from packet_investigator.parsers import collect_capture_quality
+from packet_investigator.models.tcp_conversations import TCPAnalysisStatus
+from packet_investigator.parsers import (
+    collect_capture_quality,
+    collect_tcp_conversation_evidence,
+)
 from packet_investigator.parsers.tshark import (
     CaptureInspectionError,
     CaptureValidationError,
@@ -21,6 +28,8 @@ from packet_investigator.parsers.tshark import (
 from packet_investigator.renderers import (
     render_capture_quality_json,
     render_capture_quality_rich,
+    render_tcp_conversations_json,
+    render_tcp_conversations_rich,
 )
 from packet_investigator.utils.formatting import format_file_size
 
@@ -116,6 +125,43 @@ def quality(
     raise typer.Exit(code=_quality_exit_code(assessment.status))
 
 
+@app.command()
+def tcp(
+    capture_path: Annotated[
+        Path,
+        typer.Argument(help="Path to a .pcap or .pcapng capture file."),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit only machine-readable JSON."),
+    ] = False,
+) -> None:
+    """Analyze deterministic TCP conversation evidence in a capture."""
+    try:
+        metadata = inspect_capture(capture_path)
+        quality_collection = collect_capture_quality(capture_path)
+        quality_assessment = analyze_capture_quality(metadata, quality_collection)
+        tcp_collection = collect_tcp_conversation_evidence(capture_path)
+    except CaptureInspectionError as error:
+        typer.echo(f"Error: {_safe_capture_error(error, capture_path)}", err=True)
+        raise typer.Exit(code=_exit_code(error)) from error
+
+    report = analyze_tcp_conversations(
+        tcp_collection,
+        capture=quality_assessment.capture,
+        capture_quality_status=quality_assessment.status,
+        capture_quality_limitation_codes=tuple(
+            limitation.code for limitation in quality_assessment.limitations
+        ),
+    )
+    if json_output:
+        typer.echo(render_tcp_conversations_json(report))
+    else:
+        render_tcp_conversations_rich(report)
+
+    raise typer.Exit(code=_tcp_exit_code(report.status))
+
+
 def _render_inspection(metadata: CaptureMetadata) -> None:
     console = Console()
     table = Table(
@@ -176,3 +222,21 @@ def _quality_exit_code(status: CaptureQualityStatus) -> int:
     if status is CaptureQualityStatus.LIMITED:
         return 1
     return 2
+
+
+def _tcp_exit_code(status: TCPAnalysisStatus) -> int:
+    if status in {
+        TCPAnalysisStatus.ANALYZED,
+        TCPAnalysisStatus.ANALYZED_WITH_FINDINGS,
+    }:
+        return 0
+    if status is TCPAnalysisStatus.LIMITED:
+        return 1
+    return 2
+
+
+def _safe_capture_error(error: CaptureInspectionError, capture_path: Path) -> str:
+    """Remove resolved source-path disclosure from TCP command errors."""
+    message = str(error)
+    resolved = str(capture_path.expanduser().resolve(strict=False))
+    return message.replace(resolved, capture_path.name)
