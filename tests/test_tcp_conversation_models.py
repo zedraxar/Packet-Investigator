@@ -509,6 +509,38 @@ def test_structural_ranges_must_be_ordered() -> None:
         TCPConversationStatistics.model_validate(values)
 
 
+def test_timestamp_regression_can_be_represented_for_limited_timing_analysis() -> None:
+    values = _statistics().model_dump()
+    values["last_time"] = values["first_time"] - timedelta(milliseconds=1)
+    values["duration_seconds"] = None
+
+    statistics = TCPConversationStatistics.model_validate(values)
+
+    assert statistics.last_time < statistics.first_time
+    assert statistics.duration_seconds is None
+
+
+def test_timestamp_regression_rejects_a_derived_duration() -> None:
+    values = _statistics().model_dump()
+    values["last_time"] = values["first_time"] - timedelta(milliseconds=1)
+
+    with pytest.raises(ValidationError, match="duration_seconds must be absent"):
+        TCPConversationStatistics.model_validate(values)
+
+
+def test_directional_timestamp_regression_can_be_represented() -> None:
+    values = _directional(
+        TCPDirection.A_TO_B,
+        first_frame=1,
+        last_frame=2,
+    ).model_dump()
+    values["last_time"] = values["first_time"] - timedelta(milliseconds=1)
+
+    statistics = TCPDirectionalStatistics.model_validate(values)
+
+    assert statistics.last_time < statistics.first_time
+
+
 @pytest.mark.parametrize(
     "frames",
     [

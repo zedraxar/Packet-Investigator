@@ -262,9 +262,8 @@ class TCPDirectionalStatistics(BaseModel):
 
     @model_validator(mode="after")
     def validate_ranges(self) -> TCPDirectionalStatistics:
-        """Require available frame, time, and window ranges to be ordered."""
+        """Require available frame and window ranges to be ordered."""
         _validate_ordered_int_pair(self.first_frame, self.last_frame, "frame")
-        _validate_ordered_datetime_pair(self.first_time, self.last_time, "time")
         _validate_ordered_int_pair(
             self.minimum_window_value,
             self.maximum_window_value,
@@ -297,7 +296,8 @@ class TCPConversationStatistics(BaseModel):
     def validate_ranges_and_directions(self) -> TCPConversationStatistics:
         """Require ordered boundaries and correctly labeled directional data."""
         _validate_ordered_int_pair(self.first_frame, self.last_frame, "frame")
-        _validate_ordered_datetime_pair(self.first_time, self.last_time, "time")
+        if self.last_time < self.first_time and self.duration_seconds is not None:
+            raise ValueError("duration_seconds must be absent when timestamps regress")
         if self.a_to_b.direction is not TCPDirection.A_TO_B:
             raise ValueError("a_to_b statistics must use direction a_to_b")
         if self.b_to_a.direction is not TCPDirection.B_TO_A:
@@ -552,15 +552,6 @@ class TCPAnalysisReport(BaseModel):
 def _validate_ordered_int_pair(
     lower: int | None,
     upper: int | None,
-    label: str,
-) -> None:
-    if lower is not None and upper is not None and upper < lower:
-        raise ValueError(f"last {label} must not precede first {label}")
-
-
-def _validate_ordered_datetime_pair(
-    lower: AwareDatetime | None,
-    upper: AwareDatetime | None,
     label: str,
 ) -> None:
     if lower is not None and upper is not None and upper < lower:

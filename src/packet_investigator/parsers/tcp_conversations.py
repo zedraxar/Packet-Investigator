@@ -186,6 +186,14 @@ class TCPCollectedConversation:
     interfaces: tuple[str, ...]
     a_to_b: TCPDirectionalEvidence
     b_to_a: TCPDirectionalEvidence
+    initial_syn_observation: TCPFlagObservation | None
+    syn_acknowledging_initial_syn: TCPFlagObservation | None
+    acknowledgment_of_initial_syn_ack: TCPFlagObservation | None
+    opposite_syn_before_syn_ack: bool
+    conflicting_syn_ack_signature_observed: bool
+    repeated_initial_syn_observations: int
+    repeated_matching_syn_ack_observations: int
+    flag_counts: tuple[tuple[str, int], ...]
     flag_observations: tuple[tuple[str, tuple[TCPFlagObservation, ...]], ...]
     symptom_evidence: TCPSymptomEvidence
     initial_rtt_seconds: float | None
@@ -342,12 +350,24 @@ class _ConversationState:
     interfaces: set[str] = field(default_factory=set)
     event_samples: dict[str, _FrameSample] = field(default_factory=dict)
     event_rows: dict[str, dict[int, TCPFlagObservation]] = field(default_factory=dict)
+    event_counts: dict[str, int] = field(default_factory=dict)
     symptom_counts: dict[str, int] = field(default_factory=dict)
     symptom_samples: dict[str, _FrameSample] = field(default_factory=dict)
     initial_rtt_seconds: float | None = None
     optional_parse_errors: int = 0
     collection_codes: set[str] = field(default_factory=set)
     first_syn_sequence: int | None = None
+    first_syn_direction: TCPDirection | None = None
+    initial_syn_observation: TCPFlagObservation | None = None
+    syn_acknowledging_initial_syn: TCPFlagObservation | None = None
+    acknowledgment_of_initial_syn_ack: TCPFlagObservation | None = None
+    opposite_syn_before_syn_ack: bool = False
+    conflicting_syn_ack_signature_observed: bool = False
+    repeated_initial_syn_observations: int = 0
+    matching_syn_ack_sequence: int | None = None
+    matching_syn_ack_direction: TCPDirection | None = None
+    repeated_matching_syn_ack_observations: int = 0
+    matching_final_ack_seen: bool = False
     fin_directions: set[TCPDirection] = field(default_factory=set)
     fin_expected_ack: dict[TCPDirection, int] = field(default_factory=dict)
     reset_observed: bool = False
@@ -355,6 +375,7 @@ class _ConversationState:
     def __post_init__(self) -> None:
         self.event_samples = {name: _FrameSample() for name in _EVENT_CATEGORIES}
         self.event_rows = {name: {} for name in _EVENT_CATEGORIES}
+        self.event_counts = dict.fromkeys(_EVENT_CATEGORIES, 0)
         self.symptom_counts = {name: 0 for name in _SYMPTOM_FIELDS.values()}
         self.symptom_samples = {
             name: _FrameSample() for name in _SYMPTOM_FIELDS.values()
@@ -390,6 +411,7 @@ class _ConversationState:
             fin=row.fin,
             reset=row.reset,
         )
+        self._track_opening_sequence_evidence(row, observation)
         categories: list[str] = []
         if row.ack and row.acknowledgment_number is not None:
             acknowledged_fin_direction = _opposite_direction(row.direction)
@@ -406,8 +428,10 @@ class _ConversationState:
             categories.append("syn_ack")
         elif row.syn:
             categories.append("syn")
-            if self.first_syn_sequence is None:
+            if self.initial_syn_observation is None:
                 self.first_syn_sequence = row.sequence_number
+                self.first_syn_direction = row.direction
+                self.initial_syn_observation = observation
         elif row.ack:
             categories.append("ack")
         if row.fin:
@@ -434,7 +458,70 @@ class _ConversationState:
             elif self.initial_rtt_seconds != row.initial_rtt_seconds:
                 self.collection_codes.add("TCP_INITIAL_RTT_INCONSISTENT")
 
+    def _track_opening_sequence_evidence(
+        self,
+        row: _NormalizedRow,
+        observation: TCPFlagObservation,
+    ) -> None:
+        # These are exact ordered signature repetitions, not retry findings.
+        # The analyzer owns retry qualification, wording, and suppression.
+        if row.syn and not row.ack:
+            if self.first_syn_direction is None:
+                return
+            if (
+                self.matching_syn_ack_sequence is None
+                and row.direction is _opposite_direction(self.first_syn_direction)
+            ):
+                self.opposite_syn_before_syn_ack = True
+                return
+            if (
+                not self.terminal
+                and self.matching_syn_ack_sequence is None
+                and row.direction is self.first_syn_direction
+                and row.sequence_number is not None
+                and row.sequence_number == self.first_syn_sequence
+            ):
+                self.repeated_initial_syn_observations += 1
+            return
+        if row.syn and row.ack:
+            if (
+                self.first_syn_direction is None
+                or self.first_syn_sequence is None
+                or row.direction is not _opposite_direction(self.first_syn_direction)
+                or not _ack_matches_sequence(
+                    row.acknowledgment_number,
+                    self.first_syn_sequence,
+                )
+            ):
+                return
+            if self.matching_syn_ack_sequence is None:
+                self.matching_syn_ack_sequence = row.sequence_number
+                self.matching_syn_ack_direction = row.direction
+                self.syn_acknowledging_initial_syn = observation
+            elif (
+                not self.matching_final_ack_seen
+                and row.sequence_number == self.matching_syn_ack_sequence
+            ):
+                self.repeated_matching_syn_ack_observations += 1
+            elif not self.matching_final_ack_seen:
+                self.conflicting_syn_ack_signature_observed = True
+            return
+        if (
+            row.ack
+            and self.matching_syn_ack_sequence is not None
+            and self.matching_syn_ack_direction is not None
+            and row.direction is _opposite_direction(self.matching_syn_ack_direction)
+            and _ack_matches_sequence(
+                row.acknowledgment_number,
+                self.matching_syn_ack_sequence,
+            )
+        ):
+            self.matching_final_ack_seen = True
+            if self.acknowledgment_of_initial_syn_ack is None:
+                self.acknowledgment_of_initial_syn_ack = observation
+
     def _add_event(self, category: str, observation: TCPFlagObservation) -> None:
+        self.event_counts[category] += 1
         sample = self.event_samples[category]
         sample.add(observation.frame_number)
         rows = self.event_rows[category]
@@ -1087,6 +1174,20 @@ def _freeze_group(
         interfaces=tuple(sorted(group.interfaces, key=_interface_sort_key)),
         a_to_b=_freeze_direction(group.a_to_b, TCPDirection.A_TO_B),
         b_to_a=_freeze_direction(group.b_to_a, TCPDirection.B_TO_A),
+        initial_syn_observation=group.initial_syn_observation,
+        syn_acknowledging_initial_syn=group.syn_acknowledging_initial_syn,
+        acknowledgment_of_initial_syn_ack=(group.acknowledgment_of_initial_syn_ack),
+        opposite_syn_before_syn_ack=group.opposite_syn_before_syn_ack,
+        conflicting_syn_ack_signature_observed=(
+            group.conflicting_syn_ack_signature_observed
+        ),
+        repeated_initial_syn_observations=(group.repeated_initial_syn_observations),
+        repeated_matching_syn_ack_observations=(
+            group.repeated_matching_syn_ack_observations
+        ),
+        flag_counts=tuple(
+            (category, group.event_counts[category]) for category in _EVENT_CATEGORIES
+        ),
         flag_observations=tuple(
             (
                 category,
@@ -1160,6 +1261,15 @@ def _maximum(current: int | None, value: int | None) -> int | None:
 def _opposite_direction(direction: TCPDirection) -> TCPDirection:
     return (
         TCPDirection.B_TO_A if direction is TCPDirection.A_TO_B else TCPDirection.A_TO_B
+    )
+
+
+def _ack_matches_sequence(
+    acknowledgment_number: int | None,
+    sequence_number: int,
+) -> bool:
+    return acknowledgment_number is not None and acknowledgment_number == (
+        (sequence_number + 1) & _UINT32_MAX
     )
 
 

@@ -394,6 +394,55 @@ def test_fin_acknowledgment_matching_retains_bounded_raw_evidence() -> None:
     assert not hasattr(conversation, "closure")
 
 
+def test_opening_signature_repetition_counts_are_exact_mechanical_evidence() -> None:
+    result = _collect(
+        [
+            _row(
+                frame_number=1,
+                sequence_number="100",
+                syn="1",
+                ack="0",
+                flags="0x0002",
+            ),
+            _row(
+                frame_number=2,
+                sequence_number="100",
+                syn="1",
+                ack="0",
+                flags="0x0002",
+            ),
+            _row(
+                frame_number=3,
+                ip_source="198.51.100.20",
+                ip_destination="192.0.2.10",
+                source_port="443",
+                destination_port="49152",
+                sequence_number="200",
+                acknowledgment_number="101",
+                syn="1",
+                ack="1",
+                flags="0x0012",
+            ),
+            _row(
+                frame_number=4,
+                ip_source="198.51.100.20",
+                ip_destination="192.0.2.10",
+                source_port="443",
+                destination_port="49152",
+                sequence_number="200",
+                acknowledgment_number="101",
+                syn="1",
+                ack="1",
+                flags="0x0012",
+            ),
+        ]
+    )
+
+    conversation = result.conversations[0]
+    assert conversation.repeated_initial_syn_observations == 1
+    assert conversation.repeated_matching_syn_ack_observations == 1
+
+
 def test_derived_indicators_and_initial_rtt_are_aggregated_separately() -> None:
     indicators = {
         "tcp.analysis.retransmission": "1",
