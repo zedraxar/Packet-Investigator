@@ -132,3 +132,35 @@ def test_tshark_nonzero_exit(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
 
     with pytest.raises(tshark.TsharkExecutionError, match="exit 2"):
         tshark.stream_capture_metadata("tshark", tmp_path / "sample.pcap", 1)
+
+
+def test_field_command_supports_argument_list_display_filter(tmp_path: Path) -> None:
+    capture = tmp_path / "synthetic.pcapng"
+
+    command = tshark._build_field_command(
+        "/usr/bin/tshark",
+        capture,
+        ("frame.number", "frame.len"),
+        display_filter="frame",
+    )
+
+    assert command == [
+        "/usr/bin/tshark",
+        "-n",
+        "-r",
+        str(capture),
+        "-Y",
+        "frame",
+        "-T",
+        "fields",
+        "-E",
+        "separator=\t",
+        "-E",
+        "quote=n",
+        "-E",
+        "occurrence=f",
+        "-e",
+        "frame.number",
+        "-e",
+        "frame.len",
+    ]

@@ -257,9 +257,15 @@ def stream_tshark_fields[ResultT](
     consume_rows: Callable[[Iterable[str]], ResultT],
     *,
     operation: str,
+    display_filter: str | None = None,
 ) -> ResultT:
     """Run a bounded TShark field stream and consume rows incrementally."""
-    command = _build_field_command(executable, capture_path, fields)
+    command = _build_field_command(
+        executable,
+        capture_path,
+        fields,
+        display_filter=display_filter,
+    )
     try:
         process = subprocess.Popen(
             command,
@@ -406,21 +412,29 @@ def _build_field_command(
     executable: str,
     capture_path: Path,
     fields: Sequence[str],
+    *,
+    display_filter: str | None = None,
 ) -> list[str]:
     command = [
         executable,
         "-n",
         "-r",
         str(capture_path),
-        "-T",
-        "fields",
-        "-E",
-        "separator=\t",
-        "-E",
-        "quote=n",
-        "-E",
-        "occurrence=f",
     ]
+    if display_filter is not None:
+        command.extend(("-Y", display_filter))
+    command.extend(
+        [
+            "-T",
+            "fields",
+            "-E",
+            "separator=\t",
+            "-E",
+            "quote=n",
+            "-E",
+            "occurrence=f",
+        ]
+    )
     for field in fields:
         command.extend(("-e", field))
     return command
