@@ -6,9 +6,13 @@
 **Status:** Engineering Specification Only  
 **Target release:** v0.5.0
 
+> **Implementation status (2026-07-26):** Phase 5 implementation is complete.
+> Real-TShark acceptance validation completed in Phase 5.6. This document
+> remains the historical implementation contract; its requirements have not
+> been retroactively changed.
+
 This document is the implementation contract for Phase 5. It defines
-deterministic TCP conversation analysis and does not describe functionality
-that is currently implemented. Phase 4 remains unchanged.
+deterministic TCP conversation analysis. Phase 4 remains unchanged.
 
 ## 1. Product purpose and boundaries
 

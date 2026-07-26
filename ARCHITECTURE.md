@@ -2,113 +2,188 @@
 
 ## Project philosophy
 
-Packet Investigator is designed as a local, vendor-agnostic, evidence-driven
-tool for offline PCAP and PCAPNG investigation. Deterministic observations
-should be reproducible, interpretations should state their basis, and ownership
-guidance should remain cautious when captures are incomplete.
+Packet Investigator is a local, vendor-agnostic, evidence-driven tool for
+offline PCAP and PCAPNG investigation. Observations remain separate from
+interpretations, limitations remain visible, and recommendations never exceed
+the evidence available at the capture point.
 
-## Evidence model
+The implemented evidence sequence is:
 
-Every finding is expected to distinguish:
+```text
+Observed evidence
+        ↓
+Deterministic interpretation
+        ↓
+Evidence strength
+        ↓
+Limitations
+        ↓
+Recommended next action
+```
 
-1. **Observed Facts** — measurements directly supported by packets or capture
-   metadata.
-2. **Technical Interpretation** — protocol-aware meaning derived from those
-   observations.
-3. **Ownership Guidance** — bounded guidance about the likely responsible
-   domain.
-4. **Limitations** — missing viewpoints, ambiguity, and capture constraints.
-5. **Recommended Next Capture** — the observation point most likely to reduce
-   uncertainty.
+Statuses describe analysis completeness or capture suitability. They are not
+network-health scores and do not assign technical ownership.
+
+## Implemented v0.5.0 pipeline
+
+```text
+capture file
+    ↓
+capture inspection
+    ↓
+capture-quality streaming evidence collection
+    ↓
+capture-quality deterministic analysis
+    ↓
+TCP streaming evidence collection
+    ↓
+TCP deterministic analysis
+    ↓
+immutable report models
+    ↓
+Rich terminal or JSON rendering
+    ↓
+CLI orchestration and exit-code mapping
+```
+
+Capture quality and TCP use separate bounded TShark field passes. This preserves
+the stable Phase 4 contract and keeps each field projection focused. Sharing a
+future normalized stream is permissible only if existing public results remain
+backward compatible.
 
 ## Package responsibilities
 
-- `parsers`: safely invoke TShark and normalize capture metadata; richer packet
-  parsing remains planned.
-- `models`: define typed capture metadata now and evidence, findings, and report
-  structures in later phases.
-- `analyzers`: run deterministic protocol and transport analyses.
-- `correlation`: align events across multiple capture locations.
-- `ownership`: derive cautiously worded confidence assessments.
-- `reporting`: render terminal, JSON, and HTML output.
-- `utils`: hold small shared utilities without domain ownership.
-- `cli`: expose user workflows and output controls.
+- `models` defines strict, immutable capture, quality, TCP evidence, and report
+  contracts. Models contain no subprocess, parser, analyzer, renderer, or CLI
+  behavior.
+- `parsers.tshark` owns capture-path validation, executable discovery,
+  capability queries, argument-list process execution, bounded streaming,
+  timeout enforcement, stderr sanitization, cancellation, and cleanup.
+- `parsers.capture_quality` and `parsers.tcp_conversations` normalize TShark
+  fields and retain bounded evidence. They do not create findings or statuses.
+- `analyzers.capture_quality` and `analyzers.tcp_conversations` are
+  deterministic transformations from immutable evidence into immutable
+  assessments. They perform no file, subprocess, network, name-resolution,
+  clock, locale, or terminal access.
+- `renderers` presents existing assessments as Rich terminal output or
+  deterministic JSON. It does not recalculate findings, roles, severity,
+  recommendations, or status.
+- `utils` holds small presentation-neutral helpers.
+- `cli` validates user workflows, calls public layers in order, handles typed
+  expected failures, selects one renderer, and maps final statuses to exit
+  codes.
 
-## Implemented capture inspection boundary
+No generic protocol framework, plugin system, live-capture layer, payload
+model, or cross-protocol abstraction is implemented.
 
-`CaptureMetadata` is the typed, immutable Pydantic result for basic inspection.
-It stores the resolved path, file identity and size, capture format inferred
-from the supported extension, packet count, UTC packet-boundary timestamps,
-duration, observed interface IDs, TShark version, and status. It never stores
-packet records or payloads. Empty captures consistently use a zero packet count
-and absent timestamps and duration.
+## Safe TShark boundary
 
-The reusable TShark wrapper in `parsers` owns executable discovery, path
-validation, argument construction, process execution, timeout enforcement,
-stderr sanitization, output parsing, and categorized failures. Isolating this
-boundary keeps subprocess concerns out of the CLI and gives future callers one
-safe, testable integration point. TShark is invoked directly with an argument
-list, never through a shell, and name resolution is disabled.
+Capture paths and contents are untrusted input. TShark is discovered explicitly
+and invoked with an argument list, never through a shell. Commands disable name
+resolution, read captures without modification, request only required fields,
+and never select a live interface.
 
-Packet-field output is read line by line through a bounded queue. The parser
-retains only the count, first and last timestamp, and unique interface IDs, so
-memory does not grow with packet count. Stderr retention is bounded while its
-pipe is continuously drained. A monotonic deadline covers field streaming and
-process completion; timed-out or malformed executions are terminated and then
-killed if they do not exit during a short grace period.
+The shared runner drains stdout and stderr concurrently. A bounded queue feeds
+stdout rows to streaming consumers, stderr retention is capped, and one
+monotonic deadline covers streaming and process completion. Timeout,
+cancellation, and parser failure terminate the child and escalate to kill after
+a short grace period.
 
-Current inspection is metadata-only. It supports `.pcap` and `.pcapng`, relies
-on TShark for final content validation, and does not expose capture-level
-metadata that is unavailable through the selected frame fields. Interface IDs
-may therefore be absent, and no protocol diagnosis, conversation
-reconstruction, ownership guidance, or packet-content analysis is performed.
+Expected failures are represented by typed exceptions for validation,
+executable discovery, timeout, unreadable captures, nonzero execution, and
+malformed output. Normal CLI use does not expose a traceback or raw packet row.
 
-## Operating modes
+## Bounded evidence collection
 
-- **Single Capture** will assess one packet capture.
-- **Endpoint Comparison** will compare client-side and server-side evidence.
-- **Multi-point Correlation** will combine evidence from endpoints, firewalls,
-  VPN gateways, proxies, servers, and other capture points.
+Capture inspection retains packet counts, boundary timestamps, and interface
+identifiers rather than packet objects.
 
-All operating modes are planned; none is implemented in the initial scaffold.
+Capture quality retains aggregate counters and at most 50,000 normalized
+directional flow identities. Reaching the cap stops new flow registration
+without evicting existing state and creates a visible limitation.
 
-## Planned deterministic analyzers
+TCP collection retains bounded state for at most 50,000 conversations. It
+verifies TShark stream identifiers against canonical bidirectional tuples,
+handles tuple epochs conservatively, and never exposes `tcp.stream` as a public
+identity. Findings retain at most eight representative frame numbers and parser
+warnings retain at most 100 summaries. Exact counters continue independently
+of representative sampling.
 
-Focused analyzers are planned for TCP, DNS, TLS, MTU behavior, fragmentation,
-retransmissions, and session termination. Analyzers should emit observations
-and bounded interpretations rather than opaque scores or unsupported diagnoses.
+Collectors retain TCP payload length only. Payload bytes never enter production
+evidence, models, reports, logs, or analysis.
 
-## Multi-capture correlation
+## Evidence and analysis boundaries
 
-Correlation will account for clock offsets, address translation, encapsulation,
-capture loss, and differing visibility. It should match flows and events using
-explicit evidence and preserve uncertainty when observations cannot be aligned.
+TCP evidence distinguishes:
 
-## Ownership confidence model
+1. raw frame, IP, and TCP header facts;
+2. TShark-derived sequence-analysis indicators; and
+3. Packet Investigator interpretations.
 
-Ownership guidance will use controlled confidence levels:
+The TCP analyzer applies deterministic sequence arithmetic, handshake and
+closure matching, role-evidence precedence, finding suppression, limitation
+aggregation, recommendation deduplication, and status reduction. TShark
+indicators remain labeled as derived and are not converted into proof of wire
+loss or causal ownership.
 
-- Demonstrated
-- Strongly Favored
-- Moderately Favored
-- Weakly Suggested
-- Not Demonstrated
-- Inconclusive
+Equal immutable inputs produce equal assessments. Conversation, finding,
+limitation, recommendation, evidence-frame, and JSON ordering is stable.
 
-Each level must be tied to supporting and contradictory evidence. A confidence
-label identifies evidentiary strength, not organizational blame.
+## Presentation and privacy
 
-## Capture quality validation
+Rich renderers use bounded summaries and explicit omitted counts so terminal
+output remains usable for large reports. JSON always serializes the complete
+tracked assessment according to schema `1.0`.
 
-Before interpreting behavior, the application should evaluate truncation,
-dropped packets, timestamp quality, capture duration, interface placement,
-offload artifacts, directionality, filtering, and whether critical handshake or
-termination traffic is missing.
+Capture-quality and TCP reports omit the absolute source path by default.
+Renderers cannot reconstruct a path that is absent from a model. TCP expected
+errors sanitize resolved paths. Endpoint addresses and ports remain necessary,
+sensitive report metadata and should be handled with the same care as captures.
 
-## Security and privacy principles
+Packet Investigator performs no upload, external communication, payload
+extraction, traffic decryption, or automatic sharing.
 
-Analysis should remain local by default. Captures and generated reports may
-contain sensitive data and must not be uploaded or shared automatically.
-Parsers must treat capture content and external tool output as untrusted input.
-Logging and reports should minimize payload exposure, and private captures must
-remain excluded from version control.
+## Status and exit semantics
+
+Capture-quality statuses describe suitability:
+
+- `usable`
+- `usable_with_limitations`
+- `limited`
+- `insufficient`
+
+TCP conversation statuses describe analytical completeness:
+
+- `complete`
+- `complete_with_findings`
+- `partial`
+- `limited`
+- `insufficient`
+
+TCP report statuses are `analyzed`, `analyzed_with_findings`, `limited`, and
+`insufficient`. Findings such as resets or retransmission indicators do not
+make successful analysis fail. The CLI returns zero for completed TCP analysis
+with or without findings, one for limited analysis or expected execution
+failure, and two for insufficient evidence or input validation failure.
+
+## Validation architecture
+
+Unit tests isolate model validation, field parsing, process handling, bounded
+collection, analyzer rules, rendering, and CLI orchestration. Phase 5.6 adds 17
+deterministic PCAPNG scenarios generated with Python's standard library into
+pytest temporary directories.
+
+Real TShark independently validates each generated file before the complete
+inspection → quality → TCP → report → CLI pipeline is exercised. The matrix
+covers IPv4, IPv6, handshake and closure evidence, retries, resets, midstream
+traffic, flow control, retransmission indicators, sequence wraparound, tuple
+reuse, multiple conversations, empty capture, and non-TCP capture behavior. No
+binary capture fixture is committed.
+
+## Current boundaries
+
+v0.5.0 does not implement root-cause or ownership determination, application
+payload inspection, decryption, live capture, capture comparison, multi-point
+correlation, HTML/file reports, or DNS, TLS, HTTP, SMB, UDP, QUIC, and other
+protocol analyzers. These remain possible future work and must preserve the
+same evidence, privacy, bounded-memory, and deterministic-contract principles.

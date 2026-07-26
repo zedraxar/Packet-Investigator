@@ -18,7 +18,7 @@ def test_version() -> None:
     result = runner.invoke(cli.app, ["version"])
 
     assert result.exit_code == 0
-    assert result.stdout == "0.4.0\n"
+    assert result.stdout == "0.5.0\n"
 
 
 def test_root_version_option() -> None:
@@ -26,7 +26,7 @@ def test_root_version_option() -> None:
     result = runner.invoke(cli.app, ["--version"])
 
     assert result.exit_code == 0
-    assert result.stdout == "0.4.0\n"
+    assert result.stdout == "0.5.0\n"
 
 
 def test_info() -> None:

@@ -114,3 +114,28 @@ TShark-derived retransmission scenario. Tuple/stream conflicts, malformed
 TShark rows, field-capability combinations, timestamp regression, and the
 50,000-conversation bound remain deterministic unit-test cases because they
 are parser/runtime boundaries rather than portable packet-file behaviors.
+
+## Provider-neutral CI guidance
+
+No hosting or CI provider is configured. A future owner-selected CI service
+should run the repository's existing commands without adding publication
+credentials:
+
+```bash
+python -m pip install --editable ".[dev]"
+ruff check .
+ruff format --check .
+mypy src
+pytest
+```
+
+The minimum matrix should execute on Python 3.12 and the current development
+Python version. Where the runner can install TShark without privileged live
+capture, it should also run `tests/test_capture_quality_end_to_end.py` and
+`tests/test_tcp_end_to_end.py`. Missing TShark should remain an explicit,
+precisely reported integration-test skip rather than silently replacing those
+tests with mocks.
+
+CI should not perform package publication, configure remotes, use live
+interfaces, upload captures, or require repository secrets merely to validate
+the project.

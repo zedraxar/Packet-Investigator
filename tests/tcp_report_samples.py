@@ -259,7 +259,7 @@ def make_report(
 
     return TCPAnalysisReport(
         schema_version="1.0",
-        tool_version="0.4.0",
+        tool_version="0.5.0",
         capture=CaptureQualityCapture(
             filename="synthetic-tcp.pcapng",
             path=path,

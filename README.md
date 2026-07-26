@@ -29,17 +29,53 @@ and analyze TCP conversations. These broader modes remain planned:
 
 ## Installation
 
-Python 3.12 or newer and TShark are required. From the repository root:
+Python 3.12 or newer and TShark are required. Confirm TShark is available:
+
+```bash
+tshark --version
+```
+
+Packet Investigator is not currently published to a package index. Install a
+locally built wheel:
+
+```bash
+python -m pip install dist/packet_investigator-0.5.0-py3-none-any.whl
+```
+
+Or install directly from an authorized local repository checkout:
+
+```bash
+python -m pip install .
+```
+
+Verify the installed command:
+
+```bash
+packet-investigator --version
+packet-investigator info
+packet-investigator --help
+```
+
+Typical local-capture commands are:
+
+```bash
+packet-investigator inspect path/to/capture.pcapng
+packet-investigator quality path/to/capture.pcapng
+packet-investigator tcp path/to/capture.pcapng
+packet-investigator tcp path/to/capture.pcapng --json
+```
+
+## Development environment
+
+For contributor work, install the checkout in editable mode:
 
 ```bash
 source .venv/bin/activate
 python -m pip install --editable ".[dev]"
 ```
 
-The current development environment targets Python 3.14 while retaining a
-Python 3.12 minimum wherever practical.
-
-## Development environment
+The current development environment targets Python 3.14 while retaining Python
+3.12 as the declared minimum.
 
 Run the project checks with:
 
@@ -289,3 +325,8 @@ capture-quality assessment, and deterministic TCP conversation analysis.
 Root-cause diagnosis, technical ownership assignment, capture correlation,
 application-protocol analysis, and HTML or other file-report generation are not
 implemented.
+
+## License
+
+Packet Investigator is distributed under the MIT License. See
+[LICENSE](LICENSE) for the full terms.

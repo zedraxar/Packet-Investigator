@@ -1,1 +1,0 @@
-"""Evidence-bounded ownership guidance."""

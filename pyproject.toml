@@ -5,11 +5,24 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "packet-investigator"
 dynamic = ["version"]
-description = "Evidence-driven offline packet capture investigation"
+description = "Deterministic, evidence-driven offline packet capture investigation"
 readme = "README.md"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["network-analysis", "packet-capture", "pcap", "tcp", "tshark"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Networking :: Monitoring",
+]
 dependencies = [
-    "jinja2",
     "pydantic",
     "rich",
     "typer",
