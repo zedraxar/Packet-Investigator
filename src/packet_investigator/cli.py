@@ -9,11 +9,18 @@ from rich.console import Console
 from rich.table import Table
 
 from packet_investigator import __version__
+from packet_investigator.analyzers import analyze_capture_quality
 from packet_investigator.models.capture import CaptureMetadata
+from packet_investigator.models.capture_quality import CaptureQualityStatus
+from packet_investigator.parsers import collect_capture_quality
 from packet_investigator.parsers.tshark import (
     CaptureInspectionError,
     CaptureValidationError,
     inspect_capture,
+)
+from packet_investigator.renderers import (
+    render_capture_quality_json,
+    render_capture_quality_rich,
 )
 from packet_investigator.utils.formatting import format_file_size
 
@@ -61,6 +68,34 @@ def inspect(
         return
 
     _render_inspection(metadata)
+
+
+@app.command()
+def quality(
+    capture_path: Annotated[
+        Path,
+        typer.Argument(help="Path to a .pcap or .pcapng capture file."),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit only machine-readable JSON."),
+    ] = False,
+) -> None:
+    """Assess whether a capture is suitable for further investigation."""
+    try:
+        metadata = inspect_capture(capture_path)
+        collection = collect_capture_quality(capture_path)
+    except CaptureInspectionError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=_exit_code(error)) from error
+
+    assessment = analyze_capture_quality(metadata, collection)
+    if json_output:
+        typer.echo(render_capture_quality_json(assessment))
+    else:
+        render_capture_quality_rich(assessment)
+
+    raise typer.Exit(code=_quality_exit_code(assessment.status))
 
 
 def _render_inspection(metadata: CaptureMetadata) -> None:
@@ -112,3 +147,14 @@ def _format_timestamp(timestamp: datetime | None) -> str:
 
 def _exit_code(error: CaptureInspectionError) -> int:
     return 2 if isinstance(error, CaptureValidationError) else 1
+
+
+def _quality_exit_code(status: CaptureQualityStatus) -> int:
+    if status in {
+        CaptureQualityStatus.USABLE,
+        CaptureQualityStatus.USABLE_WITH_LIMITATIONS,
+    }:
+        return 0
+    if status is CaptureQualityStatus.LIMITED:
+        return 1
+    return 2
