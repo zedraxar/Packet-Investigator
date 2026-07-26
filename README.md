@@ -71,6 +71,80 @@ TShark remains the final validator of capture contents. The command does not
 inspect payloads, reconstruct conversations, diagnose protocols, or make
 ownership claims. Diagnostic packet analysis is not implemented.
 
+## Capture-quality assessment
+
+The implemented `quality` command assesses whether a PCAP or PCAPNG capture is
+suitable evidence for further investigation:
+
+```bash
+packet-investigator quality path/to/capture.pcapng
+packet-investigator quality path/to/capture.pcapng --json
+```
+
+The assessment considers capture-level evidence including:
+
+- empty and very short captures;
+- visibility of TCP SYN packets and possible midstream TCP conversations;
+- frames whose captured length is shorter than their reported original length;
+- checksum-warning caveats, including possible capture-host offload effects;
+- observed capture interfaces; and
+- explicit limits on bounded TCP flow tracking.
+
+Findings keep observations separate from cautious interpretations, limitations,
+and recommended next capture actions. The command does not provide root-cause
+protocol diagnosis, TCP performance diagnosis, TLS certificate diagnosis,
+SMB-specific diagnosis, or firewall-policy correlation.
+
+### Terminal example
+
+The terminal report is intentionally concise at the top, followed by supporting
+metadata, statistics, findings, limitations, and recommendations:
+
+```text
+Packet Investigator — Capture Quality
+Capture: synthetic-midstream.pcapng
+Overall status: USABLE WITH LIMITATIONS
+The capture is usable with explicit limitations.
+
+Findings
+MIDSTREAM_TCP_OBSERVED
+Observation: Established TCP behavior appeared before an observed SYN for 1 tracked directional flows.
+```
+
+### JSON example
+
+Use `--json` for machine-readable output with no Rich banner or surrounding
+prose. This representative excerpt uses the actual schema and enum values:
+
+```json
+{
+  "schema_version": "1.0",
+  "status": "usable_with_limitations",
+  "capture": {
+    "filename": "synthetic-midstream.pcapng"
+  }
+}
+```
+
+The complete JSON document also contains the tool version, capture metadata,
+findings, limitations, recommendations, statistics, and status summary. The
+absolute capture path is omitted by default.
+
+### Exit codes
+
+Assessment statuses and operational failures share a small, established exit
+code contract:
+
+- `0` — the assessment status is `usable` or `usable_with_limitations`.
+- `1` — the assessment status is `limited`, or an expected non-validation
+  capture/TShark execution error occurred.
+- `2` — the assessment status is `insufficient`, or capture-path validation
+  failed.
+
+An assessment-status exit means the capture was read and assessed. An error
+message instead indicates that input validation or capture/TShark execution
+prevented a completed assessment.
+
 ## Other CLI examples
 
 ```bash
@@ -88,7 +162,8 @@ synthetic, sanitized, authorized, and free of credentials or sensitive payloads.
 
 ## Current project status
 
-Phase 3 currently provides safe capture-file metadata inspection in addition to
-the package scaffold and development tooling. Protocol analysis, conversation
-reconstruction, ownership guidance, correlation, and report generation are not
+Phase 4 currently provides safe capture-file metadata inspection and
+capture-quality assessment in addition to the package scaffold and development
+tooling. Protocol diagnosis, conversation reconstruction, ownership guidance,
+capture correlation, and HTML or other file-report generation are not
 implemented yet.
