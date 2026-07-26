@@ -18,7 +18,15 @@ def test_version() -> None:
     result = runner.invoke(cli.app, ["version"])
 
     assert result.exit_code == 0
-    assert "0.2.0" in result.stdout
+    assert result.stdout == "0.4.0\n"
+
+
+def test_root_version_option() -> None:
+    """The conventional root version option reports the package version."""
+    result = runner.invoke(cli.app, ["--version"])
+
+    assert result.exit_code == 0
+    assert result.stdout == "0.4.0\n"
 
 
 def test_info() -> None:

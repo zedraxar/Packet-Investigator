@@ -26,8 +26,26 @@ from packet_investigator.utils.formatting import format_file_size
 
 app = typer.Typer(
     help="Evidence-driven offline packet capture investigation.",
+    invoke_without_command=True,
     no_args_is_help=True,
 )
+
+
+@app.callback()
+def main(
+    show_version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            help="Display the Packet Investigator version and exit.",
+            is_eager=True,
+        ),
+    ] = False,
+) -> None:
+    """Run Packet Investigator commands."""
+    if show_version:
+        typer.echo(__version__)
+        raise typer.Exit()
 
 
 @app.command()
