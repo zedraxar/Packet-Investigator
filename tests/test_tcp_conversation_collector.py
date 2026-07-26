@@ -490,6 +490,26 @@ def test_derived_indicators_and_initial_rtt_are_aggregated_separately() -> None:
     assert conversation.initial_rtt_seconds == 0.025
 
 
+def test_tshark_textual_booleans_are_parsed_explicitly() -> None:
+    result = _collect(
+        [
+            _row(
+                syn="True",
+                ack="False",
+                fin="False",
+                reset="False",
+                flags="0x0002",
+                indicators={"tcp.analysis.retransmission": "True"},
+            )
+        ]
+    )
+
+    conversation = result.conversations[0]
+
+    assert len(dict(conversation.flag_observations)["syn"]) == 1
+    assert _symptom_counts(conversation)["retransmission"] == 1
+
+
 def test_inconsistent_initial_rtt_is_not_retained_as_a_measurement() -> None:
     result = _collect(
         [

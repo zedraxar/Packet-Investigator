@@ -18,3 +18,36 @@ data.
 
 All three captures are safe to regenerate by calling
 `tests.fixtures.captures.write_capture_fixtures()` with a destination directory.
+
+## Phase 5 TCP matrix
+
+`write_tcp_capture_matrix()` generates 17 additional temporary scenarios:
+
+- complete three-way handshake with orderly close;
+- SYN retries;
+- SYN/ACK retries;
+- reset after an opening SYN;
+- reset after establishment;
+- bidirectional midstream traffic;
+- incomplete FIN closure;
+- zero-window observations;
+- a TShark-recognized retransmission;
+- one-way TCP payload;
+- 32-bit sequence wraparound;
+- simultaneous open;
+- multiple independent conversations;
+- an IPv6 conversation;
+- four-tuple reuse across two closed connection epochs;
+- a valid empty capture;
+- a valid ICMP-only capture with no TCP conversations.
+
+The suite independently asks real TShark to open every file and validate packet
+counts and documentation endpoints before exercising the complete Packet
+Investigator pipeline. The captures exist only under pytest temporary
+directories. No PCAP or PCAPNG binary is committed.
+
+Tuple/stream conflicts, malformed field rows, timestamp regressions, and
+tracking-limit exhaustion remain focused normalized-row tests. Those behaviors
+cannot be represented portably and honestly by a small packet file without
+depending on unstable TShark internals or generating an impractically large
+fixture.

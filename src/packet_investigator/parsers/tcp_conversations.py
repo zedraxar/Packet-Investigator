@@ -1114,9 +1114,9 @@ def _parse_required_flags(value: str, row_number: int) -> int:
 
 
 def _parse_required_bool(value: str, row_number: int, field_name: str) -> bool:
-    if value == "1":
+    if value in {"1", "True"}:
         return True
-    if value == "0":
+    if value in {"0", "False"}:
         return False
     raise TsharkOutputError(f"Invalid required field {field_name} at row {row_number}.")
 
@@ -1138,9 +1138,9 @@ def _validate_flag_consistency(
 def _parse_optional_bool(value: str) -> tuple[bool | None, bool]:
     if value == "":
         return None, False
-    if value == "1":
+    if value in {"1", "True"}:
         return True, False
-    if value == "0":
+    if value in {"0", "False"}:
         return False, False
     return None, True
 

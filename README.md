@@ -18,11 +18,11 @@ finding will follow this evidence model:
 
 Ownership statements must never be stronger than the available packet evidence.
 
-## Planned operating modes
+## Operating modes
 
-These modes are planned and are not yet implemented:
+The current single-capture commands inspect metadata, assess capture quality,
+and analyze TCP conversations. These broader modes remain planned:
 
-- **Single Capture** — analyze one capture and describe supported findings.
 - **Endpoint Comparison** — compare client-side and server-side captures.
 - **Multi-point Correlation** — correlate captures from firewalls, VPN
   gateways, proxies, servers, and other observation points.
@@ -145,6 +145,128 @@ An assessment-status exit means the capture was read and assessed. An error
 message instead indicates that input validation or capture/TShark execution
 prevented a completed assessment.
 
+## TCP conversation analysis
+
+The implemented `tcp` command performs deterministic, offline TCP conversation
+analysis using the evidence visible in a PCAP or PCAPNG capture:
+
+```bash
+packet-investigator tcp path/to/capture.pcapng
+packet-investigator tcp path/to/capture.pcapng --json
+```
+
+Python 3.12 or newer and TShark on `PATH` are required. Packet Investigator
+first inspects and assesses capture quality, then asks TShark for a minimal set
+of TCP header fields and analysis indicators. It does not use live interfaces
+or network access.
+
+The report can describe:
+
+- canonical IPv4 and IPv6 TCP conversations and observed direction;
+- visible handshake, retry, reset, and FIN-close evidence;
+- packet, frame-byte, and TCP payload-length totals in each direction;
+- TShark-derived retransmission, duplicate-ACK, out-of-order, flow-control,
+  and keepalive indicators when those fields are available;
+- observed timing intervals and their limitations; and
+- evidence-linked recommendations for collecting or correlating better data.
+
+Representative finding codes include `TCP_SYN_RETRY_OBSERVED`,
+`TCP_MIDSTREAM_CONVERSATION`, `TCP_RESET_AFTER_ESTABLISHMENT`,
+`TCP_RETRANSMISSION_INDICATORS_OBSERVED`, and
+`TCP_ZERO_WINDOW_OBSERVED`.
+
+### Terminal example
+
+```text
+Packet Investigator — TCP Conversation Analysis
+Capture: reset-after-establishment.pcapng
+Overall status: ANALYZED WITH FINDINGS
+1 TCP conversations were analyzed with findings or partial visibility.
+
+Conversation summary
+tcp-000001  192.0.2.10:49152 ↔ 198.51.100.20:443
+Handshake: COMPLETE
+Closure: RESET
+Status: COMPLETE WITH FINDINGS
+
+TCP_RESET_AFTER_ESTABLISHMENT
+Observed: A TCP reset was observed from endpoint B.
+
+Scope: TCP evidence only. This report does not establish root cause or
+technical ownership.
+```
+
+Spacing and wrapping vary with terminal width; the facts and ordering do not.
+Long reports show bounded terminal summaries with explicit omitted counts. JSON
+always contains every tracked conversation.
+
+### JSON example
+
+`--json` writes only the complete schema `1.0` document to standard output.
+This shortened example shows representative fields:
+
+```json
+{
+  "capture": {
+    "filename": "complete-orderly-close.pcapng"
+  },
+  "conversations": [
+    {
+      "identity": {
+        "conversation_id": "tcp-000001"
+      },
+      "status": "complete"
+    }
+  ],
+  "schema_version": "1.0",
+  "status": "analyzed"
+}
+```
+
+Equal reports serialize deterministically. The absolute capture path is omitted
+from terminal and JSON output. Endpoint addresses and ports remain sensitive
+capture metadata, so generated reports should be handled with the same care as
+captures.
+
+### Statuses and exit codes
+
+Conversation statuses describe analytical completeness, not connection health:
+
+- `complete`
+- `complete_with_findings`
+- `partial`
+- `limited`
+- `insufficient`
+
+Report statuses are `analyzed`, `analyzed_with_findings`, `limited`, and
+`insufficient`. Exit codes are:
+
+- `0` — analysis completed, with or without TCP findings;
+- `1` — analysis completed with material limitations, or an expected
+  non-validation capture/TShark execution error occurred;
+- `2` — TCP evidence was insufficient, or input validation failed.
+
+A reset, retry, zero window, or retransmission indicator is evidence in a
+successful report and does not by itself make command execution fail.
+
+### Interpretation limits
+
+The analyzer reports only evidence present at the capture point. It does not:
+
+- prove traffic was absent outside the capture;
+- determine root cause or assign firewall, network, client, server, endpoint,
+  application, ISP, or team responsibility;
+- prove packet loss from a retransmission-like TShark indicator;
+- inspect or retain application payload content;
+- decrypt traffic; or
+- replace endpoint, firewall, routing, or application telemetry.
+
+Conclusions may be limited by capture position, truncation, capture drops,
+missing direction, a midstream start, timestamp quality, bounded conversation
+tracking, or unavailable optional TShark fields. Compare independent telemetry
+and captures from other authorized observation points before drawing causal
+conclusions.
+
 ## Other CLI examples
 
 ```bash
@@ -162,8 +284,8 @@ synthetic, sanitized, authorized, and free of credentials or sensitive payloads.
 
 ## Current project status
 
-Phase 4 currently provides safe capture-file metadata inspection and
-capture-quality assessment in addition to the package scaffold and development
-tooling. Protocol diagnosis, conversation reconstruction, ownership guidance,
-capture correlation, and HTML or other file-report generation are not
-implemented yet.
+Packet Investigator currently provides capture-file metadata inspection,
+capture-quality assessment, and deterministic TCP conversation analysis.
+Root-cause diagnosis, technical ownership assignment, capture correlation,
+application-protocol analysis, and HTML or other file-report generation are not
+implemented.
