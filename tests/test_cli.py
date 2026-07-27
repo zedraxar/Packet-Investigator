@@ -10,14 +10,17 @@ import pytest
 from typer.testing import CliRunner
 
 from packet_investigator import cli
+from packet_investigator.analyzers import analyze_dns_transactions
 from packet_investigator.models.capture import CaptureMetadata
 from packet_investigator.models.capture_quality import CaptureQualityStatus
 from packet_investigator.models.dns_transactions import DNSAnalysisStatus
+from packet_investigator.parsers.dns_transactions import _collect_dns_rows
 from packet_investigator.parsers.tshark import (
     CaptureValidationError,
     TsharkExecutionError,
 )
 from tests.dns_report_samples import make_limitation, make_report
+from tests.test_dns_transaction_collector import _row
 
 runner = CliRunner()
 
@@ -236,6 +239,58 @@ def test_dns_json_stdout_contains_only_one_document(
     assert result.stdout == '{"schema_version":"1.0","status":"analyzed"}\n'
     json_mock.assert_called_once_with(report)
     rich_mock.assert_not_called()
+
+
+def test_dns_json_omits_unsupported_answers_without_false_limited_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pipeline = _mock_dns_pipeline(monkeypatch)
+    quality_assessment = pipeline[2]
+    collection = _collect_dns_rows(
+        [
+            _row(frame=1, response_in="2"),
+            _row(
+                frame=2,
+                timestamp="1785686400.025",
+                response="1",
+                source="198.51.100.53",
+                destination="192.0.2.10",
+                udp_source_port="53",
+                udp_destination_port="49152",
+                recursion_available="1",
+                answer_count="1",
+                response_to="1",
+                dns_time="0.025",
+                answer_names=("private-text.service.example",),
+                answer_types=("16",),
+                answer_ttls=("86400",),
+            ),
+        ]
+    )
+    report = analyze_dns_transactions(
+        collection,
+        capture=quality_assessment.capture,
+        capture_quality_status=CaptureQualityStatus.USABLE,
+        capture_quality_limitation_codes=(),
+    )
+    pipeline[9].return_value = report
+    pipeline[-1].return_value = report.model_dump_json() + "\n"
+
+    result = runner.invoke(cli.app, ["dns", "synthetic.pcapng", "--json"])
+
+    parsed = json.loads(result.stdout)
+    assert result.exit_code == 0
+    assert result.stderr == ""
+    assert result.stdout.endswith("\n")
+    assert not result.stdout.endswith("\n\n")
+    assert parsed["status"] == "analyzed"
+    assert parsed["statistics"]["answer_records_observed"] == 1
+    assert parsed["statistics"]["answer_records_retained"] == 0
+    assert parsed["transactions"][0]["evidence"]["answers"] == []
+    assert "private-text.service.example" not in result.stdout
+    assert "86400" not in result.stdout
+    assert "TYPE16" not in result.stdout
+    assert "DNS_ANSWER_RETENTION_LIMIT_REACHED" not in result.stdout
 
 
 @pytest.mark.parametrize(

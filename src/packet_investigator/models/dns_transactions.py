@@ -195,7 +195,7 @@ class DNSAnswerSummary(BaseModel):
 
     model_config = _ModelConfig
 
-    record_type: _DNSNumericCode
+    record_type: Literal[1, 5, 28]
     owner_name: _DNSDisplayName | None
     ttl_seconds: _NonNegativeInt | None
     value: _DNSDisplayName | None
@@ -212,7 +212,7 @@ class DNSAnswerSummary(BaseModel):
 
     @model_validator(mode="after")
     def validate_approved_value(self) -> DNSAnswerSummary:
-        """Permit values only for approved A, CNAME, and AAAA summaries."""
+        """Validate bounded values for approved A, CNAME, and AAAA summaries."""
         if self.record_type == 1:
             if self.value is None:
                 return self
@@ -236,8 +236,6 @@ class DNSAnswerSummary(BaseModel):
         elif self.record_type == 5:
             if self.value is not None and not self.value:
                 raise ValueError("CNAME summary value must not be empty")
-        elif self.value is not None:
-            raise ValueError("values are permitted only for A, AAAA, and CNAME")
         return self
 
 

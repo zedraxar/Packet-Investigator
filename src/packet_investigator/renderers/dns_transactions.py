@@ -433,10 +433,7 @@ def _endpoint(endpoint: DNSEndpoint) -> str:
 
 
 def _answer(answer: DNSAnswerSummary) -> str:
-    label = {1: "A", 5: "CNAME", 28: "AAAA"}.get(
-        answer.record_type,
-        f"TYPE{answer.record_type}",
-    )
+    label = {1: "A", 5: "CNAME", 28: "AAAA"}[answer.record_type]
     owner = answer.owner_name or "owner unavailable"
     value = answer.value or "value unavailable"
     ttl = (

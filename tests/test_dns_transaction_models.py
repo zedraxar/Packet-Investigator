@@ -395,7 +395,6 @@ def test_query_requires_normalized_bounded_ascii_matching_name() -> None:
         (1, "198.51.100.25"),
         (28, "2001:db8::25"),
         (5, "target.example"),
-        (15, None),
     ],
 )
 def test_answer_summary_allows_only_approved_bounded_values(
@@ -410,14 +409,18 @@ def test_answer_summary_allows_only_approved_bounded_values(
     [
         (1, "2001:db8::1"),
         (28, "198.51.100.1"),
+        (2, None),
         (15, "mail.example"),
+        (16, None),
         (16, "arbitrary text"),
         (33, "service.example"),
+        (43, None),
+        (65_535, None),
     ],
 )
 def test_answer_summary_rejects_unapproved_or_mismatched_values(
     record_type: int,
-    value: str,
+    value: str | None,
 ) -> None:
     with pytest.raises(ValidationError):
         _answer(record_type=record_type, value=value)

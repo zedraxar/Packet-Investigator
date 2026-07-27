@@ -418,22 +418,90 @@ def test_approved_answer_summaries(
     assert result.transactions[0].answers[0].value == expected
 
 
-def test_unsupported_rdata_is_counted_without_value_retention() -> None:
+def test_txt_answer_is_counted_without_public_summary_or_retention_limit() -> None:
+    unsupported_owner = "private-text.service.example"
+    unsupported_ttl = "86400"
     result = _collect(
         [
             _response(
                 response_to="",
                 answer_count="1",
-                answer_names=("service.example",),
+                answer_names=(unsupported_owner,),
                 answer_types=("16",),
-                answer_ttls=("300",),
+                answer_ttls=(unsupported_ttl,),
             )
         ]
     )
     assert result.answer_records_observed == 1
-    assert result.retained_answers[0].record_type == 16
-    assert result.retained_answers[0].value is None
-    assert "raw_rdata" not in repr(result).lower()
+    assert result.answer_records_retained == 0
+    assert not result.retained_answers
+    assert not result.transactions[0].answers
+    assert result.transactions[0].answer_collection_complete
+    assert "DNS_ANSWER_RETENTION_LIMIT_REACHED" not in result.collection_codes
+    public_evidence = repr(result)
+    assert unsupported_owner not in public_evidence
+    assert unsupported_ttl not in public_evidence
+    assert "raw_rdata" not in public_evidence.lower()
+
+
+def test_mixed_answers_retain_only_aligned_approved_summaries() -> None:
+    result = _collect(
+        [
+            _response(
+                response_to="",
+                answer_count="6",
+                answer_names=(
+                    "a.service.example",
+                    "private-text.service.example",
+                    "aaaa.service.example",
+                    "private-mail.service.example",
+                    "alias.service.example",
+                    "private-srv.service.example",
+                ),
+                answer_types=("1", "16", "28", "15", "5", "33"),
+                answer_ttls=("60", "610", "120", "620", "180", "630"),
+                a_values=("198.51.100.25",),
+                aaaa_values=("2001:db8::25",),
+                cname_values=("target.service.example",),
+            )
+        ]
+    )
+
+    assert result.answer_records_observed == 6
+    assert result.answer_records_retained == 3
+    assert tuple(answer.record_type for answer in result.retained_answers) == (1, 5, 28)
+    assert {
+        (answer.owner_name, answer.ttl_seconds, answer.value)
+        for answer in result.retained_answers
+    } == {
+        ("a.service.example", 60, "198.51.100.25"),
+        ("alias.service.example", 180, "target.service.example"),
+        ("aaaa.service.example", 120, "2001:db8::25"),
+    }
+    assert "DNS_ANSWER_RETENTION_LIMIT_REACHED" not in result.collection_codes
+
+
+@pytest.mark.parametrize("record_type", [2, 6, 12, 15, 16, 33, 43, 65_535])
+def test_unsupported_answer_families_are_intentionally_omitted(
+    record_type: int,
+) -> None:
+    result = _collect(
+        [
+            _response(
+                response_to="",
+                answer_count="1",
+                answer_names=("private-unsupported.service.example",),
+                answer_types=(str(record_type),),
+                answer_ttls=("86400",),
+            )
+        ]
+    )
+
+    assert result.answer_records_observed == 1
+    assert result.answer_records_retained == 0
+    assert not result.retained_answers
+    assert result.transactions[0].answer_collection_complete
+    assert "DNS_ANSWER_RETENTION_LIMIT_REACHED" not in result.collection_codes
 
 
 def test_malformed_optional_answer_metadata_warns_without_aborting() -> None:

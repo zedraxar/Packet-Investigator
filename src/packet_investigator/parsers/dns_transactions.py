@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from pathlib import Path
+from typing import Literal, cast
 
 from packet_investigator.models.dns_transactions import (
     DNS_MAX_ANSWERS_PER_MESSAGE,
@@ -155,6 +156,12 @@ class _NormalizedRow:
     response_in: int | None
     response_to: int | None
     answers_complete: bool
+
+
+@dataclass(frozen=True, slots=True)
+class _ParsedAnswers:
+    summaries: tuple[DNSAnswerSummary, ...]
+    approved_records_observed: int
 
 
 class _FrameSample:
@@ -400,16 +407,16 @@ class _DNSAccumulator:
         response_in = self._optional_int(value, row_number, "dns.response_in")
         response_to = self._optional_int(value, row_number, "dns.response_to")
         tshark_time = self._optional_float(value, row_number, "dns.time")
-        answers = self._parse_answers(value, answer_count, frame, row_number)
+        parsed_answers = self._parse_answers(value, answer_count, frame, row_number)
         self._answer_records_observed += answer_count
         remaining = max(0, MAX_RETAINED_ANSWERS - len(self._retained_answers))
-        retained = answers[:remaining]
+        retained = parsed_answers.summaries[:remaining]
         self._retained_answers.extend(retained)
         answers_complete = (
-            answer_count <= DNS_MAX_ANSWERS_PER_MESSAGE
-            and len(retained) == answer_count
+            parsed_answers.approved_records_observed <= DNS_MAX_ANSWERS_PER_MESSAGE
+            and len(retained) == len(parsed_answers.summaries)
         )
-        if answer_count > DNS_MAX_ANSWERS_PER_MESSAGE or not answers_complete:
+        if not answers_complete:
             self._collection_codes.add("DNS_ANSWER_RETENTION_LIMIT_REACHED")
 
         message = DNSMessageEvidence(
@@ -556,7 +563,7 @@ class _DNSAccumulator:
         answer_count: int,
         frame: int,
         row_number: int,
-    ) -> tuple[DNSAnswerSummary, ...]:
+    ) -> _ParsedAnswers:
         types = _occurrences(value("dns.resp.type"))[:answer_count]
         names = _occurrences(value("dns.resp.name"))[:answer_count]
         ttls = _occurrences(value("dns.resp.ttl"))[:answer_count]
@@ -566,23 +573,30 @@ class _DNSAccumulator:
             28: deque(_occurrences(value("dns.aaaa"))),
         }
         summaries: list[DNSAnswerSummary] = []
+        approved_records_observed = 0
         for index, type_text in enumerate(types):
-            if len(summaries) >= DNS_MAX_ANSWERS_PER_MESSAGE:
-                break
             try:
                 record_type = _required_int(
                     type_text, row_number, "dns.resp.type", 0, 65_535
                 )
+                if record_type not in (1, 5, 28):
+                    continue
+                approved_record_type = cast(Literal[1, 5, 28], record_type)
+                approved_records_observed += 1
+                if len(summaries) >= DNS_MAX_ANSWERS_PER_MESSAGE:
+                    continue
                 owner = names[index] if index < len(names) and names[index] else None
                 ttl = (
                     _required_int(ttls[index], row_number, "dns.resp.ttl", 0)
                     if index < len(ttls) and ttls[index]
                     else None
                 )
-                answer_value = self._approved_answer_value(values_by_type, record_type)
+                answer_value = self._approved_answer_value(
+                    values_by_type, approved_record_type
+                )
                 summaries.append(
                     DNSAnswerSummary(
-                        record_type=record_type,
+                        record_type=approved_record_type,
                         owner_name=owner,
                         ttl_seconds=ttl,
                         value=answer_value,
@@ -592,7 +606,10 @@ class _DNSAccumulator:
                 )
             except (TsharkOutputError, ValueError):
                 self._optional_warning(row_number, "dns.answer")
-        return tuple(sorted(summaries, key=_answer_sort_key))
+        return _ParsedAnswers(
+            summaries=tuple(sorted(summaries, key=_answer_sort_key)),
+            approved_records_observed=approved_records_observed,
+        )
 
     @staticmethod
     def _approved_answer_value(
