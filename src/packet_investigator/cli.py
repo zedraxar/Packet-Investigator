@@ -11,13 +11,16 @@ from rich.table import Table
 from packet_investigator import __version__
 from packet_investigator.analyzers import (
     analyze_capture_quality,
+    analyze_dns_transactions,
     analyze_tcp_conversations,
 )
 from packet_investigator.models.capture import CaptureMetadata
 from packet_investigator.models.capture_quality import CaptureQualityStatus
+from packet_investigator.models.dns_transactions import DNSAnalysisStatus
 from packet_investigator.models.tcp_conversations import TCPAnalysisStatus
 from packet_investigator.parsers import (
     collect_capture_quality,
+    collect_dns_transaction_evidence,
     collect_tcp_conversation_evidence,
 )
 from packet_investigator.parsers.tshark import (
@@ -28,6 +31,8 @@ from packet_investigator.parsers.tshark import (
 from packet_investigator.renderers import (
     render_capture_quality_json,
     render_capture_quality_rich,
+    render_dns_transactions_json,
+    render_dns_transactions_rich,
     render_tcp_conversations_json,
     render_tcp_conversations_rich,
 )
@@ -68,8 +73,9 @@ def info() -> None:
     """Describe the current implementation status."""
     typer.echo(
         "Packet Investigator provides offline capture metadata inspection, "
-        "capture-quality assessment, and deterministic TCP conversation analysis. "
-        "It does not provide root-cause or ownership conclusions."
+        "capture-quality assessment, deterministic TCP conversation analysis, "
+        "and deterministic classic DNS transaction analysis. It does not provide "
+        "root-cause or ownership conclusions."
     )
 
 
@@ -163,6 +169,43 @@ def tcp(
     raise typer.Exit(code=_tcp_exit_code(report.status))
 
 
+@app.command()
+def dns(
+    capture_path: Annotated[
+        Path,
+        typer.Argument(help="Path to a .pcap or .pcapng capture file."),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit only machine-readable JSON."),
+    ] = False,
+) -> None:
+    """Analyze deterministic classic DNS transaction evidence in a capture."""
+    try:
+        metadata = inspect_capture(capture_path)
+        quality_collection = collect_capture_quality(capture_path)
+        quality_assessment = analyze_capture_quality(metadata, quality_collection)
+        dns_collection = collect_dns_transaction_evidence(capture_path)
+    except CaptureInspectionError as error:
+        typer.echo(f"Error: {_safe_capture_error(error, capture_path)}", err=True)
+        raise typer.Exit(code=_exit_code(error)) from error
+
+    report = analyze_dns_transactions(
+        dns_collection,
+        capture=quality_assessment.capture,
+        capture_quality_status=quality_assessment.status,
+        capture_quality_limitation_codes=tuple(
+            limitation.code for limitation in quality_assessment.limitations
+        ),
+    )
+    if json_output:
+        typer.echo(render_dns_transactions_json(report), nl=False)
+    else:
+        render_dns_transactions_rich(report)
+
+    raise typer.Exit(code=_dns_exit_code(report.status))
+
+
 def _render_inspection(metadata: CaptureMetadata) -> None:
     console = Console()
     table = Table(
@@ -236,8 +279,19 @@ def _tcp_exit_code(status: TCPAnalysisStatus) -> int:
     return 2
 
 
+def _dns_exit_code(status: DNSAnalysisStatus) -> int:
+    if status in {
+        DNSAnalysisStatus.ANALYZED,
+        DNSAnalysisStatus.ANALYZED_WITH_FINDINGS,
+    }:
+        return 0
+    if status is DNSAnalysisStatus.LIMITED:
+        return 1
+    return 2
+
+
 def _safe_capture_error(error: CaptureInspectionError, capture_path: Path) -> str:
-    """Remove resolved source-path disclosure from TCP command errors."""
+    """Remove resolved source-path disclosure from protocol command errors."""
     message = str(error)
     resolved = str(capture_path.expanduser().resolve(strict=False))
     return message.replace(resolved, capture_path.name)
