@@ -352,6 +352,7 @@ class DNSTransactionEvidence(BaseModel):
     elapsed_provenance: DNSEvidenceProvenance | None
     interface_ids: tuple[_NonEmptyText, ...]
     representative_frames: tuple[_PositiveFrame, ...]
+    answers: tuple[DNSAnswerSummary, ...]
     tracking_complete: bool
     answer_collection_complete: bool
 
@@ -402,6 +403,28 @@ class DNSTransactionEvidence(BaseModel):
     ) -> tuple[int, ...]:
         """Require a sorted, unique, bounded representative sample."""
         return _validate_representative_frames(value)
+
+    @field_validator("answers")
+    @classmethod
+    def validate_answers(
+        cls,
+        value: tuple[DNSAnswerSummary, ...],
+    ) -> tuple[DNSAnswerSummary, ...]:
+        """Require deterministic answer ordering without arbitrary RDATA."""
+        keys = tuple(
+            (
+                answer.record_type,
+                answer.owner_name or "",
+                answer.value or "",
+                answer.ttl_seconds if answer.ttl_seconds is not None else -1,
+                answer.representative_frame,
+                answer.provenance.value,
+            )
+            for answer in value
+        )
+        if keys != tuple(sorted(keys)):
+            raise ValueError("answers must use deterministic sorted order")
+        return value
 
     @model_validator(mode="after")
     def validate_boundaries(self) -> DNSTransactionEvidence:

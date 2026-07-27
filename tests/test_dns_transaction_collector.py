@@ -415,6 +415,7 @@ def test_approved_answer_summaries(
     answer = result.retained_answers[0]
     assert answer.value == expected
     assert answer.provenance is DNSEvidenceProvenance.RAW_HEADER
+    assert result.transactions[0].answers[0].value == expected
 
 
 def test_unsupported_rdata_is_counted_without_value_retention() -> None:

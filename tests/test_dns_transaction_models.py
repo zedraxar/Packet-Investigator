@@ -145,6 +145,7 @@ def _transaction_evidence(
         elapsed_provenance=DNSEvidenceProvenance.PACKET_INVESTIGATOR_DERIVED,
         interface_ids=("0",),
         representative_frames=(1, 2),
+        answers=(_answer(),),
         tracking_complete=True,
         answer_collection_complete=True,
     )
@@ -547,6 +548,9 @@ def test_report_schema_privacy_and_deterministic_serialization() -> None:
     )
     assert payload["transactions"][0]["identity"]["requester"]["address"] == (
         "192.0.2.10"
+    )
+    assert payload["transactions"][0]["evidence"]["answers"][0]["value"] == (
+        "198.51.100.25"
     )
     serialized = first.lower()
     assert "raw_payload" not in serialized

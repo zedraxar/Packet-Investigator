@@ -221,6 +221,7 @@ class _TransactionState:
     interface_ids: set[str] = field(default_factory=set)
     frames: _FrameSample = field(default_factory=_FrameSample)
     messages: _MessageSample = field(default_factory=_MessageSample)
+    answers: list[DNSAnswerSummary] = field(default_factory=list)
     match_basis: DNSMatchBasis = DNSMatchBasis.UNMATCHED
     answer_collection_complete: bool = True
     elapsed_seconds: float | None = None
@@ -268,6 +269,7 @@ class _TransactionState:
             self.interface_ids.add(message.interface_id)
         self.frames.add(message.frame_number)
         self.messages.add(message)
+        self.answers.extend(message.answers)
         derived_count = sum(
             (
                 message.tshark_retransmission,
@@ -935,6 +937,7 @@ def _freeze_state(
         elapsed_provenance=state.elapsed_provenance,
         interface_ids=tuple(sorted(state.interface_ids, key=_interface_sort_key)),
         representative_frames=state.frames.finish(),
+        answers=tuple(sorted(state.answers, key=_answer_sort_key)),
         tracking_complete=tracking_complete,
         answer_collection_complete=state.answer_collection_complete,
     )
