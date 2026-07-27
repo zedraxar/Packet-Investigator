@@ -86,19 +86,16 @@ inspect payload content, decrypt traffic, or assign ownership.
 The historical implementation contract is
 [docs/specs/phase-5-tcp-conversation-analysis.md](docs/specs/phase-5-tcp-conversation-analysis.md).
 
-## Current milestone — v0.5.0 release preparation
+## Current milestone — Phase 6.0 specification finalization
 
-Release preparation covers:
+Packet Investigator v0.5.0 is complete and locally tagged. Phase 6 discovery
+and planning selected classic DNS transaction analysis. The Phase 6.0
+engineering specification is complete.
 
-- canonical version and changelog;
-- accurate architecture and user documentation;
-- dependency and package metadata review;
-- clean wheel and source-distribution builds;
-- fresh-environment installation and CLI smoke tests;
-- distribution privacy/content inspection; and
-- final quality-gate review.
-
-Tagging, publishing, and remote release actions require separate authorization.
+DNS transaction analysis remains proposed and is not implemented. After the
+specification is approved, Phase 6.1 is the next milestone and is limited to
+immutable DNS transaction domain models:
+[docs/specs/phase-6-dns-transaction-analysis.md](docs/specs/phase-6-dns-transaction-analysis.md).
 
 ## Future work
 
