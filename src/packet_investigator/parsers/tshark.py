@@ -258,6 +258,8 @@ def stream_tshark_fields[ResultT](
     *,
     operation: str,
     display_filter: str | None = None,
+    field_occurrence: str = "f",
+    aggregator: str | None = None,
 ) -> ResultT:
     """Run a bounded TShark field stream and consume rows incrementally."""
     command = _build_field_command(
@@ -265,6 +267,8 @@ def stream_tshark_fields[ResultT](
         capture_path,
         fields,
         display_filter=display_filter,
+        field_occurrence=field_occurrence,
+        aggregator=aggregator,
     )
     try:
         process = subprocess.Popen(
@@ -414,7 +418,13 @@ def _build_field_command(
     fields: Sequence[str],
     *,
     display_filter: str | None = None,
+    field_occurrence: str = "f",
+    aggregator: str | None = None,
 ) -> list[str]:
+    if field_occurrence not in {"f", "l", "a"}:
+        raise ValueError("field_occurrence must be 'f', 'l', or 'a'.")
+    if aggregator is not None and len(aggregator) != 1:
+        raise ValueError("aggregator must be exactly one character.")
     command = [
         executable,
         "-n",
@@ -432,9 +442,11 @@ def _build_field_command(
             "-E",
             "quote=n",
             "-E",
-            "occurrence=f",
+            f"occurrence={field_occurrence}",
         ]
     )
+    if aggregator is not None:
+        command.extend(("-E", f"aggregator={aggregator}"))
     for field in fields:
         command.extend(("-e", field))
     return command

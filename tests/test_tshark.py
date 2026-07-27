@@ -164,3 +164,25 @@ def test_field_command_supports_argument_list_display_filter(tmp_path: Path) -> 
         "-e",
         "frame.len",
     ]
+
+
+def test_field_command_supports_multi_occurrence_aggregation(tmp_path: Path) -> None:
+    command = tshark._build_field_command(
+        "/usr/bin/tshark",
+        tmp_path / "dns.pcapng",
+        ("dns.resp.type", "dns.a"),
+        display_filter="dns",
+        field_occurrence="a",
+        aggregator="\x1e",
+    )
+
+    occurrence_index = command.index("occurrence=a")
+    aggregator_index = command.index("aggregator=\x1e")
+    assert command[occurrence_index - 1 : occurrence_index + 1] == [
+        "-E",
+        "occurrence=a",
+    ]
+    assert command[aggregator_index - 1 : aggregator_index + 1] == [
+        "-E",
+        "aggregator=\x1e",
+    ]
