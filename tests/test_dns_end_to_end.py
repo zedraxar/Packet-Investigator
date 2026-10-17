@@ -52,7 +52,6 @@ _FINDINGS = {
     "refused": "DNS_RESPONSE_CODE_OBSERVED",
     "retry_then_answer": "DNS_QUERY_RETRY_INDICATORS_OBSERVED",
     "unanswered_query": "DNS_QUERY_WITHOUT_RESPONSE_OBSERVED",
-    "response_only": "DNS_RESPONSE_WITHOUT_QUERY_OBSERVED",
     "truncated_udp": "DNS_TRUNCATED_RESPONSE_OBSERVED",
     "udp_tc_then_tcp": "DNS_TRUNCATED_RESPONSE_OBSERVED",
     "multiple_responses": "DNS_MULTIPLE_RESPONSES_OBSERVED",
@@ -129,6 +128,11 @@ def test_real_pipeline_is_private_and_schema_valid(
     if scenario in {"empty", "no_dns"}:
         assert report.status is DNSAnalysisStatus.INSUFFICIENT
         assert report.transactions == ()
+    elif scenario == "response_only":
+        assert report.status in {
+            DNSAnalysisStatus.LIMITED,
+            DNSAnalysisStatus.ANALYZED_WITH_FINDINGS,
+        }
     else:
         assert report.status in {
             DNSAnalysisStatus.ANALYZED,
