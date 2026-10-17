@@ -93,9 +93,9 @@ working tree now includes classic DNS transaction models, collection,
 analysis, Rich/JSON rendering, CLI integration, and focused tests. The
 Phase 6.0 specification is a historical implementation contract.
 
-DNS transaction analysis code is present on this branch, but generated real-TShark DNS acceptance is not yet demonstrated. See [the DNS implementation audit](docs/dns-implementation-audit.md) for evidence and remaining gaps. After the
-specification is approved, Phase 6.1 is the next milestone and is limited to
-immutable DNS transaction domain models:
+DNS transaction analysis code is present on this branch, but generated real-TShark DNS acceptance is not yet demonstrated. See [the DNS implementation audit](docs/dns-implementation-audit.md) for evidence and remaining gaps. The remaining Phase 6 gate is a generated real-TShark DNS
+acceptance matrix, independent review, and documented validation; no release
+or final completion is claimed. Historical design:
 [docs/specs/phase-6-dns-transaction-analysis.md](docs/specs/phase-6-dns-transaction-analysis.md).
 
 ## Future work
