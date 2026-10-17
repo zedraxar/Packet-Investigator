@@ -24,7 +24,10 @@ from tests.fixtures.captures import (
 
 
 def _name(value: str) -> bytes:
-    labels = (bytes((len(label),)) + label.encode("ascii") for label in value.split("."))
+    labels = (
+        bytes((len(label),)) + label.encode("ascii")
+        for label in value.split(".")
+    )
     return b"".join(labels) + b"\x00"
 
 
