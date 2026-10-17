@@ -405,8 +405,11 @@ class _DNSAccumulator:
         recursion_desired = self._required_flag(
             value, row_number, "dns.flags.recdesired"
         )
-        recursion_available = self._required_flag(
-            value, row_number, "dns.flags.recavail"
+        raw_recavail = value("dns.flags.recavail")
+        recursion_available = (
+            False
+            if not is_response and not raw_recavail
+            else self._required_flag(value, row_number, "dns.flags.recavail")
         )
         query_count = self._required_code(value, row_number, "dns.count.queries")
         answer_count = self._required_code(value, row_number, "dns.count.answers")
