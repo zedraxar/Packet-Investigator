@@ -24,7 +24,8 @@ from tests.fixtures.captures import (
 
 
 def _name(value: str) -> bytes:
-    return b"".join(bytes((len(label),)) + label.encode("ascii") for label in value.split(".")) + b"\x00"
+    labels = (bytes((len(label),)) + label.encode("ascii") for label in value.split("."))
+    return b"".join(labels) + b"\x00"
 
 
 def _dns(*, response: bool = False, rcode: int = 0, truncated: bool = False,
@@ -46,7 +47,9 @@ def _dns(*, response: bool = False, rcode: int = 0, truncated: bool = False,
 
 def _udp(payload: bytes, *, response: bool = False, ipv6: bool = False) -> bytes:
     src_port, dst_port = (53, 49152) if response else (49152, 53)
-    src_mac, dst_mac = (_SERVER_MAC, _CLIENT_MAC) if response else (_CLIENT_MAC, _SERVER_MAC)
+    src_mac, dst_mac = (
+        (_SERVER_MAC, _CLIENT_MAC) if response else (_CLIENT_MAC, _SERVER_MAC)
+    )
     udp_len = 8 + len(payload)
     header = struct.pack("!HHHH", src_port, dst_port, udp_len, 0)
     if ipv6:
