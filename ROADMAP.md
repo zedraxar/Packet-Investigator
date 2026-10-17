@@ -92,7 +92,7 @@ Packet Investigator v0.5.0 is complete and locally tagged. Phase 6 discovery
 and planning selected classic DNS transaction analysis. The Phase 6.0
 engineering specification is complete.
 
-DNS transaction analysis remains proposed and is not implemented. After the
+DNS transaction analysis code is present on this branch, but generated real-TShark DNS acceptance is not yet demonstrated. See [the DNS implementation audit](docs/dns-implementation-audit.md) for evidence and remaining gaps. After the
 specification is approved, Phase 6.1 is the next milestone and is limited to
 immutable DNS transaction domain models:
 [docs/specs/phase-6-dns-transaction-analysis.md](docs/specs/phase-6-dns-transaction-analysis.md).
