@@ -25,15 +25,21 @@ from tests.fixtures.captures import (
 
 def _name(value: str) -> bytes:
     labels = (
-        bytes((len(label),)) + label.encode("ascii")
-        for label in value.split(".")
+        bytes((len(label),)) + label.encode("ascii") for label in value.split(".")
     )
     return b"".join(labels) + b"\x00"
 
 
-def _dns(*, response: bool = False, rcode: int = 0, truncated: bool = False,
-         qtype: int = 1, name: str = "service.example", dns_id: int = 0x1234,
-         answer: bool = True) -> bytes:
+def _dns(
+    *,
+    response: bool = False,
+    rcode: int = 0,
+    truncated: bool = False,
+    qtype: int = 1,
+    name: str = "service.example",
+    dns_id: int = 0x1234,
+    answer: bool = True,
+) -> bytes:
     flags = (0x8180 if response else 0x0100) | rcode
     if truncated:
         flags |= 0x0200
@@ -42,8 +48,11 @@ def _dns(*, response: bool = False, rcode: int = 0, truncated: bool = False,
     header = struct.pack("!HHHHHH", dns_id, flags, 1, count, 0, 0)
     if not count:
         return header + question
-    value = (bytes((198, 51, 100, 25)) if qtype == 1 else
-             bytes.fromhex("20010db8000000000000000000000025"))
+    value = (
+        bytes((198, 51, 100, 25))
+        if qtype == 1
+        else bytes.fromhex("20010db8000000000000000000000025")
+    )
     resource = b"\xc0\x0c" + struct.pack("!HHIH", qtype, 1, 300, len(value)) + value
     return header + question + resource
 
@@ -56,21 +65,22 @@ def _udp(payload: bytes, *, response: bool = False, ipv6: bool = False) -> bytes
     udp_len = 8 + len(payload)
     header = struct.pack("!HHHH", src_port, dst_port, udp_len, 0)
     if ipv6:
-        src, dst = ((_SERVER_IPV6, _CLIENT_IPV6) if response else
-                    (_CLIENT_IPV6, _SERVER_IPV6))
+        src, dst = (
+            (_SERVER_IPV6, _CLIENT_IPV6) if response else (_CLIENT_IPV6, _SERVER_IPV6)
+        )
         pseudo = src + dst + struct.pack("!I", udp_len) + b"\x00\x00\x00\x11"
         checksum = _internet_checksum(pseudo + header + payload)
-        header = header[:6] + struct.pack("!H", checksum or 0xffff)
+        header = header[:6] + struct.pack("!H", checksum or 0xFFFF)
         ip = struct.pack("!IHBB16s16s", 6 << 28, udp_len, 17, 64, src, dst)
         return dst_mac + src_mac + b"\x86\xdd" + ip + header + payload
 
-    src, dst = ((_SERVER_IP, _CLIENT_IP) if response else
-                (_CLIENT_IP, _SERVER_IP))
+    src, dst = (_SERVER_IP, _CLIENT_IP) if response else (_CLIENT_IP, _SERVER_IP)
     pseudo = src + dst + struct.pack("!BBH", 0, 17, udp_len)
     checksum = _internet_checksum(pseudo + header + payload)
-    header = header[:6] + struct.pack("!H", checksum or 0xffff)
-    ip = struct.pack("!BBHHHBBH4s4s", 0x45, 0, 20 + udp_len, 1,
-                     0x4000, 64, 17, 0, src, dst)
+    header = header[:6] + struct.pack("!H", checksum or 0xFFFF)
+    ip = struct.pack(
+        "!BBHHHBBH4s4s", 0x45, 0, 20 + udp_len, 1, 0x4000, 64, 17, 0, src, dst
+    )
     ip = ip[:10] + struct.pack("!H", _internet_checksum(ip)) + ip[12:]
     return dst_mac + src_mac + b"\x08\x00" + ip + header + payload
 
@@ -79,11 +89,25 @@ def _query(*, name: str = "service.example", dns_id: int = 0x1234) -> bytes:
     return _udp(_dns(name=name, dns_id=dns_id))
 
 
-def _reply(*, rcode: int = 0, truncated: bool = False,
-           answer: bool = True, name: str = "service.example",
-           dns_id: int = 0x1234) -> bytes:
-    return _udp(_dns(response=True, rcode=rcode, truncated=truncated,
-                     answer=answer, name=name, dns_id=dns_id), response=True)
+def _reply(
+    *,
+    rcode: int = 0,
+    truncated: bool = False,
+    answer: bool = True,
+    name: str = "service.example",
+    dns_id: int = 0x1234,
+) -> bytes:
+    return _udp(
+        _dns(
+            response=True,
+            rcode=rcode,
+            truncated=truncated,
+            answer=answer,
+            name=name,
+            dns_id=dns_id,
+        ),
+        response=True,
+    )
 
 
 def _tcp_exchange() -> tuple[bytes, ...]:
@@ -94,16 +118,33 @@ def _tcp_exchange() -> tuple[bytes, ...]:
     response_payload = struct.pack("!H", len(reply)) + reply
     return (
         _tcp_packet(flags=0x02, sequence=1000, destination_port=53),
-        _tcp_packet(flags=0x12, sequence=5000, acknowledgment=1001,
-                    reverse=True, source_port=49152, destination_port=53),
-        _tcp_packet(flags=0x10, sequence=1001, acknowledgment=5001,
-                    destination_port=53),
-        _tcp_packet(flags=0x18, sequence=1001, acknowledgment=5001,
-                    destination_port=53, payload=request_payload),
-        _tcp_packet(flags=0x18, sequence=5001,
-                    acknowledgment=1001 + len(request_payload),
-                    reverse=True, source_port=49152, destination_port=53,
-                    payload=response_payload),
+        _tcp_packet(
+            flags=0x12,
+            sequence=5000,
+            acknowledgment=1001,
+            reverse=True,
+            source_port=49152,
+            destination_port=53,
+        ),
+        _tcp_packet(
+            flags=0x10, sequence=1001, acknowledgment=5001, destination_port=53
+        ),
+        _tcp_packet(
+            flags=0x18,
+            sequence=1001,
+            acknowledgment=5001,
+            destination_port=53,
+            payload=request_payload,
+        ),
+        _tcp_packet(
+            flags=0x18,
+            sequence=5001,
+            acknowledgment=1001 + len(request_payload),
+            reverse=True,
+            source_port=49152,
+            destination_port=53,
+            payload=response_payload,
+        ),
     )
 
 
@@ -124,7 +165,9 @@ def write_dns_capture_matrix(directory: Path) -> dict[str, Path]:
         "response_only": (_reply(),),
         "truncated_udp": (_query(), _reply(truncated=True, answer=False)),
         "udp_tc_then_tcp": (
-            _query(), _reply(truncated=True, answer=False), *_tcp_exchange(),
+            _query(),
+            _reply(truncated=True, answer=False),
+            *_tcp_exchange(),
         ),
         "multiple_responses": (_query(), _reply(), _reply()),
         "multiple_transactions": (
