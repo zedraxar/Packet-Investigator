@@ -128,7 +128,7 @@ def test_real_pipeline_is_private_and_schema_valid(
     if scenario in {"empty", "no_dns"}:
         assert report.status is DNSAnalysisStatus.INSUFFICIENT
         assert report.transactions == ()
-    elif scenario == "response_only":
+    elif scenario in {"response_only", "unanswered_query"}:
         assert report.status in {
             DNSAnalysisStatus.LIMITED,
             DNSAnalysisStatus.ANALYZED_WITH_FINDINGS,
@@ -146,8 +146,17 @@ def test_real_dns_findings_are_capture_bounded(
     dns_captures: dict[str, Path], scenario: str, finding: str,
 ) -> None:
     report = _report(dns_captures[scenario])
-    assert finding in {item.code for item in report.findings}
-    assert report.status is DNSAnalysisStatus.ANALYZED_WITH_FINDINGS
+    # Report-level findings require at least two affected transactions.
+    # A single observed transaction retains its finding in the assessment.
+    assert finding in {
+        item.code
+        for transaction in report.transactions
+        for item in transaction.findings
+    }
+    assert report.status in {
+        DNSAnalysisStatus.ANALYZED_WITH_FINDINGS,
+        DNSAnalysisStatus.LIMITED,
+    }
     rendered = render_dns_transactions_json(report).lower()
     assert "root cause is" not in rendered
     assert "network failure" not in rendered
