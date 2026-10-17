@@ -9,6 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import click
 import pytest
 from typer.testing import CliRunner
 
@@ -79,7 +80,7 @@ def test_tcp_command_appears_in_help_with_exact_initial_options() -> None:
     assert command.exit_code == 0
     assert "Analyze deterministic TCP conversation evidence" in command.stdout
     assert "capture_path" in command.stdout
-    assert "--json" in command.stdout
+    assert "--json" in click.unstyle(command.stdout)
     assert "--include-path" not in command.stdout
     assert "--timeout" not in command.stdout
 
