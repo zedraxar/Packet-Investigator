@@ -69,12 +69,15 @@ def _udp(payload: bytes, *, response: bool = False, ipv6: bool = False) -> bytes
     return dst_mac + src_mac + b"\x08\x00" + ip + header + payload
 
 
-def _query(**kwargs: object) -> bytes:
-    return _udp(_dns(**kwargs))
+def _query(*, name: str = "service.example", dns_id: int = 0x1234) -> bytes:
+    return _udp(_dns(name=name, dns_id=dns_id))
 
 
-def _reply(**kwargs: object) -> bytes:
-    return _udp(_dns(response=True, **kwargs), response=True)
+def _reply(*, rcode: int = 0, truncated: bool = False,
+           answer: bool = True, name: str = "service.example",
+           dns_id: int = 0x1234) -> bytes:
+    return _udp(_dns(response=True, rcode=rcode, truncated=truncated,
+                     answer=answer, name=name, dns_id=dns_id), response=True)
 
 
 def _tcp_exchange() -> tuple[bytes, ...]:
