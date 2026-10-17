@@ -94,13 +94,28 @@ def test_generated_dns_matrix_is_complete_reproducible_and_ephemeral(
 @_REQUIRES_TSHARK
 @pytest.mark.parametrize(("scenario", "counts"), tuple(_COUNTS.items()))
 def test_wire_capture_has_expected_frames_and_decoded_dns(
-    dns_captures: dict[str, Path], scenario: str, counts: tuple[int, int],
+    dns_captures: dict[str, Path],
+    scenario: str,
+    counts: tuple[int, int],
 ) -> None:
     assert _TSHARK is not None
     completed = subprocess.run(
-        [_TSHARK, "-n", "-r", str(dns_captures[scenario]),
-         "-T", "fields", "-e", "frame.number", "-e", "dns.id"],
-        check=False, capture_output=True, text=True, timeout=15,
+        [
+            _TSHARK,
+            "-n",
+            "-r",
+            str(dns_captures[scenario]),
+            "-T",
+            "fields",
+            "-e",
+            "frame.number",
+            "-e",
+            "dns.id",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
     )
     assert completed.returncode == 0, completed.stderr
     rows = completed.stdout.splitlines()
@@ -111,7 +126,8 @@ def test_wire_capture_has_expected_frames_and_decoded_dns(
 @_REQUIRES_TSHARK
 @pytest.mark.parametrize("scenario", tuple(_COUNTS))
 def test_real_pipeline_is_private_and_schema_valid(
-    dns_captures: dict[str, Path], scenario: str,
+    dns_captures: dict[str, Path],
+    scenario: str,
 ) -> None:
     path = dns_captures[scenario]
     report = _report(path)
@@ -122,8 +138,7 @@ def test_real_pipeline_is_private_and_schema_valid(
     assert str(path.parent) not in render_dns_transactions_json(report)
     assert report.statistics.dns_messages == _COUNTS[scenario][1]
     assert all(
-        len(finding.evidence.representative_frames) <= 8
-        for finding in report.findings
+        len(finding.evidence.representative_frames) <= 8 for finding in report.findings
     )
     if scenario in {"empty", "no_dns"}:
         assert report.status is DNSAnalysisStatus.INSUFFICIENT
@@ -143,7 +158,9 @@ def test_real_pipeline_is_private_and_schema_valid(
 @_REQUIRES_TSHARK
 @pytest.mark.parametrize(("scenario", "finding"), tuple(_FINDINGS.items()))
 def test_real_dns_findings_are_capture_bounded(
-    dns_captures: dict[str, Path], scenario: str, finding: str,
+    dns_captures: dict[str, Path],
+    scenario: str,
+    finding: str,
 ) -> None:
     report = _report(dns_captures[scenario])
     # Report-level findings require at least two affected transactions.
@@ -168,7 +185,9 @@ def test_real_dns_findings_are_capture_bounded(
     [("successful_a_udp", 0), ("nxdomain", 0), ("empty", 2), ("no_dns", 2)],
 )
 def test_real_dns_cli_exit_and_deterministic_json(
-    dns_captures: dict[str, Path], scenario: str, exit_code: int,
+    dns_captures: dict[str, Path],
+    scenario: str,
+    exit_code: int,
 ) -> None:
     args = ["dns", str(dns_captures[scenario]), "--json"]
     first = _RUNNER.invoke(cli.app, args)
@@ -190,9 +209,22 @@ def test_ipv6_and_tcp_dns_are_independently_decoded(
         ("udp_tc_then_tcp", "dns && tcp"),
     ):
         result = subprocess.run(
-            [_TSHARK, "-n", "-r", str(dns_captures[scenario]),
-             "-Y", display_filter, "-T", "fields", "-e", "dns.id"],
-            capture_output=True, text=True, check=False, timeout=15,
+            [
+                _TSHARK,
+                "-n",
+                "-r",
+                str(dns_captures[scenario]),
+                "-Y",
+                display_filter,
+                "-T",
+                "fields",
+                "-e",
+                "dns.id",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
         )
         assert result.returncode == 0, result.stderr
         assert len(result.stdout.splitlines()) == 2
