@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import click
 import pytest
 from typer.testing import CliRunner
 
@@ -156,7 +157,7 @@ def test_dns_command_registration_and_help() -> None:
     assert command.exit_code == 0
     assert "Analyze deterministic classic DNS transaction evidence" in command.stdout
     assert "capture_path" in command.stdout
-    assert "--json" in command.stdout
+    assert "--json" in click.unstyle(command.stdout)
     assert "--timeout" not in command.stdout
     assert "--include-path" not in command.stdout
 
