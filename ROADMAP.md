@@ -86,11 +86,12 @@ inspect payload content, decrypt traffic, or assign ownership.
 The historical implementation contract is
 [docs/specs/phase-5-tcp-conversation-analysis.md](docs/specs/phase-5-tcp-conversation-analysis.md).
 
-## Current milestone — Phase 6.0 specification finalization
+## Current milestone — Phase 6 DNS acceptance verification
 
-Packet Investigator v0.5.0 is complete and locally tagged. Phase 6 discovery
-and planning selected classic DNS transaction analysis. The Phase 6.0
-engineering specification is complete.
+Packet Investigator v0.5.0 is the last documented release baseline. The
+working tree now includes classic DNS transaction models, collection,
+analysis, Rich/JSON rendering, CLI integration, and focused tests. The
+Phase 6.0 specification is a historical implementation contract.
 
 DNS transaction analysis code is present on this branch, but generated real-TShark DNS acceptance is not yet demonstrated. See [the DNS implementation audit](docs/dns-implementation-audit.md) for evidence and remaining gaps. After the
 specification is approved, Phase 6.1 is the next milestone and is limited to
