@@ -392,7 +392,15 @@ class _DNSAccumulator:
             "dns.flags.response",
         )
         opcode = self._required_code(value, row_number, "dns.flags.opcode")
-        response_code = self._required_code(value, row_number, "dns.flags.rcode")
+        # TShark may omit dns.flags.rcode on a query even though the
+        # four wire RCODE bits are zero. A missing response RCODE remains
+        # invalid; never silently substitute a successful response.
+        raw_rcode = value("dns.flags.rcode")
+        response_code = (
+            0
+            if not is_response and not raw_rcode
+            else self._required_code(value, row_number, "dns.flags.rcode")
+        )
         truncated = self._required_flag(value, row_number, "dns.flags.truncated")
         recursion_desired = self._required_flag(
             value, row_number, "dns.flags.recdesired"
