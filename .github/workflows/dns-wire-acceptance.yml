@@ -27,5 +27,11 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y tshark
       - name: Install test dependencies
         run: python -m pip install -e ".[dev]"
-      - name: Run real-TShark DNS acceptance
-        run: python -m pytest -q tests/test_dns_end_to_end.py
+      - name: Ruff lint
+        run: ruff check .
+      - name: Ruff formatting
+        run: ruff format --check .
+      - name: Mypy
+        run: mypy src
+      - name: Run complete pytest suite
+        run: python -m pytest -q
