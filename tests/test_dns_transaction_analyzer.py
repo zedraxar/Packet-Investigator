@@ -286,6 +286,11 @@ def test_nonzero_response_code_finding(rcode: int, label: str | None) -> None:
     assert finding.code == "DNS_RESPONSE_CODE_OBSERVED"
     assert finding.evidence["response_code"] == rcode
     assert finding.evidence["response_code_label"] == label
+    assert finding.observation == (
+        f"A DNS response with {label} (code {rcode}) was observed."
+        if label
+        else f"A DNS response with code {rcode} was observed."
+    )
     assert "cause" in finding.interpretation
 
 
