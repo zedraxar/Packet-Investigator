@@ -86,17 +86,25 @@ inspect payload content, decrypt traffic, or assign ownership.
 The historical implementation contract is
 [docs/specs/phase-5-tcp-conversation-analysis.md](docs/specs/phase-5-tcp-conversation-analysis.md).
 
-## Current milestone — Phase 6 DNS acceptance verification
+## Current milestone — Phase 6 review and release readiness
 
-Packet Investigator v0.5.0 is the last documented release baseline. The
-working tree now includes classic DNS transaction models, collection,
-analysis, Rich/JSON rendering, CLI integration, and focused tests. The
-Phase 6.0 specification is a historical implementation contract.
+Packet Investigator v0.5.0 is the last documented release baseline. Classic
+DNS transaction models, collection, analysis, Rich/JSON rendering, and CLI
+integration are implemented. Phase 6.0 remains the historical specification.
 
-DNS transaction analysis code is present on this branch, but generated real-TShark DNS acceptance is not yet demonstrated. See [the DNS implementation audit](docs/dns-implementation-audit.md) for evidence and remaining gaps. The remaining Phase 6 gate is a generated real-TShark DNS
-acceptance matrix, independent review, and documented validation; no release
-or final completion is claimed. Historical design:
-[docs/specs/phase-6-dns-transaction-analysis.md](docs/specs/phase-6-dns-transaction-analysis.md).
+Phase 6.6 generated real-TShark acceptance is implemented by merged PR #8:
+`tests/fixtures/dns_captures.py` generates 14 deterministic temporary
+PCAPNG scenarios, and `tests/test_dns_end_to_end.py` validates real-TShark
+parsing, analysis, CLI behavior, and report privacy. The PR #8 GitHub Actions
+run passed Ruff lint, Ruff format, mypy, and 713 pytest tests on Python 3.12
+with TShark installed:
+https://github.com/zedraxar/Packet-Investigator/actions/runs/39081323068
+
+This establishes acceptance on that CI environment, not compatibility across
+all supported Python/TShark versions. Independent architecture/security review,
+packaging and release gates, and release approval remain unverified. See
+[the DNS implementation audit](docs/dns-implementation-audit.md). Historical
+design: [Phase 6 DNS specification](docs/specs/phase-6-dns-transaction-analysis.md).
 
 ## Future work
 
