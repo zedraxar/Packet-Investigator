@@ -86,16 +86,25 @@ inspect payload content, decrypt traffic, or assign ownership.
 The historical implementation contract is
 [docs/specs/phase-5-tcp-conversation-analysis.md](docs/specs/phase-5-tcp-conversation-analysis.md).
 
-## Current milestone — Phase 6.0 specification finalization
+## Current milestone — Phase 6 review and release readiness
 
-Packet Investigator v0.5.0 is complete and locally tagged. Phase 6 discovery
-and planning selected classic DNS transaction analysis. The Phase 6.0
-engineering specification is complete.
+Packet Investigator v0.5.0 is the last documented release baseline. Classic
+DNS transaction models, collection, analysis, Rich/JSON rendering, and CLI
+integration are implemented. Phase 6.0 remains the historical specification.
 
-DNS transaction analysis remains proposed and is not implemented. After the
-specification is approved, Phase 6.1 is the next milestone and is limited to
-immutable DNS transaction domain models:
-[docs/specs/phase-6-dns-transaction-analysis.md](docs/specs/phase-6-dns-transaction-analysis.md).
+Phase 6.6 generated real-TShark acceptance is implemented by merged PR #8:
+`tests/fixtures/dns_captures.py` generates 14 deterministic temporary
+PCAPNG scenarios, and `tests/test_dns_end_to_end.py` validates real-TShark
+parsing, analysis, CLI behavior, and report privacy. The PR #8 GitHub Actions
+run passed Ruff lint, Ruff format, mypy, and 713 pytest tests on Python 3.12
+with TShark installed:
+https://github.com/zedraxar/Packet-Investigator/actions/runs/39081323068
+
+This establishes acceptance on that CI environment, not compatibility across
+all supported Python/TShark versions. Independent architecture/security review,
+packaging and release gates, and release approval remain unverified. See
+[the DNS implementation audit](docs/dns-implementation-audit.md). Historical
+design: [Phase 6 DNS specification](docs/specs/phase-6-dns-transaction-analysis.md).
 
 ## Future work
 
