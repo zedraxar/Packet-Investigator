@@ -278,11 +278,7 @@ def _transaction_findings(
         if response_code == 0:
             continue
         label = _RCODE_LABELS.get(response_code)
-        named = (
-            f"{label} (code {response_code})"
-            if label
-            else f"code {response_code}"
-        )
+        named = f"{label} (code {response_code})" if label else f"code {response_code}"
         findings.append(
             _finding(
                 "DNS_RESPONSE_CODE_OBSERVED",
