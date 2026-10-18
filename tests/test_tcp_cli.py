@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from typer.main import get_command
 from typer.testing import CliRunner
 
 from packet_investigator import cli
@@ -79,7 +80,8 @@ def test_tcp_command_appears_in_help_with_exact_initial_options() -> None:
     assert command.exit_code == 0
     assert "Analyze deterministic TCP conversation evidence" in command.stdout
     assert "capture_path" in command.stdout
-    assert "--json" in command.stdout
+    tcp_params = get_command(cli.app).commands["tcp"].params
+    assert any("--json" in param.opts for param in tcp_params)
     assert "--include-path" not in command.stdout
     assert "--timeout" not in command.stdout
 
