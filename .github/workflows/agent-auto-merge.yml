@@ -1,0 +1,52 @@
+name: Auto-merge safe agent PRs
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches:
+      - "feature/phase-6-planning"
+
+# This workflow never checks out or executes pull-request code.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  request-auto-merge:
+    if: >-
+      ${{ !github.event.pull_request.draft &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          startsWith(github.event.pull_request.head.ref, 'automation/') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require only low-risk changed paths
+        id: paths
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')
+          if (( ${#files[@]} == 0 )); then
+            echo "No changed files; skipping auto-merge."
+            exit 0
+          fi
+          for file in "${files[@]}"; do
+            case "$file" in
+              src/*|tests/*|docs/*|README.md|ROADMAP.md) ;;
+              *)
+                echo "Manual review required for: $file"
+                exit 0
+                ;;
+            esac
+          done
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+
+      - name: Queue GitHub auto-merge (required checks remain enforced)
+        if: steps.paths.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash
