@@ -4,7 +4,7 @@ Audited branch: `feature/phase-6-planning` at
 `ba60004aafe78eef01cd734a9b63b807471799dc`.
 Reference contract: [Phase 6 DNS specification](specs/phase-6-dns-transaction-analysis.md).
 
-This is a **source-and-test inventory**, not a claim of runtime acceptance.
+This audit began as a source-and-test inventory. Acceptance evidence was subsequently added by merged PR #8; the original source snapshot above is retained for traceability.
 No private captures, external capture uploads, or live traffic were used.
 
 ## Implemented in the reviewed source
@@ -26,16 +26,8 @@ addresses remain potentially sensitive metadata, even without payload bytes.
 
 ## Remaining verification and deviations from the completion contract
 
-- [ ] **Phase 6.6 real-TShark DNS acceptance is not present.** The
-  specification requires 14 generated scenarios, but the reviewed tree has no
-  `tests/test_dns_end_to_end.py` or DNS scenario generator in
-  `tests/fixtures/captures.py`. Existing DNS pipeline tests use synthetic
-  projected rows; CLI tests use mocks. Do not equate these with real-TShark
-  capture acceptance.
-- [ ] **Installed-TShark compatibility is not established by this audit.**
-  Required/optional field handling has unit tests, but the complete DNS path
-  still needs validation against supported installed TShark versions and
-  deterministic, non-sensitive generated PCAP/PCAPNG fixtures.
+- [x] **Phase 6.6 generated real-TShark DNS acceptance is present.** Merged PR #8 adds `tests/fixtures/dns_captures.py` and `tests/test_dns_end_to_end.py`, covering 14 deterministic, generated DNS capture scenarios. These include UDP, IPv6/AAAA, DNS-over-TCP fallback, response codes, retries, incomplete exchanges, empty and non-DNS captures. Captures are generated in temporary directories, not committed.
+- [x] **Installed-TShark acceptance validated on GitHub Actions.** PR #8 run `39081323068` passed Ruff lint, Ruff formatting, `mypy src`, and full pytest (**713 passed**) on Python 3.12 with TShark installed: https://github.com/zedraxar/Packet-Investigator/actions/runs/39081323068 . This does not establish compatibility across all Python/TShark versions.
 - [ ] **Phase 6.5 architecture/security review and full release gates are
   not established here.** The reviewed source shows bounded state, sanitized
   errors, and privacy-oriented tests, but that is not equivalent to completed
@@ -55,9 +47,5 @@ assignment, and arbitrary DNS record-value extraction are not claimed.
 
 ## Next steps
 
-1. Add the 14-scenario generated DNS real-TShark acceptance suite in a
-   separate, reviewable issue/PR; do not commit private or binary captures.
-2. Verify CLI and package behavior across the supported TShark/Python matrix
-   and record the actual validation results.
-3. Complete the remaining architecture/privacy review before marking Phase 6
-   fully accepted or preparing a release.
+1. Expand validation across supported Python and TShark versions, and perform packaging smoke tests.
+2. Complete independent architecture/privacy review before marking Phase 6 fully accepted or preparing a release.
