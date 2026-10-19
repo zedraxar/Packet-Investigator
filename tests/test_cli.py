@@ -26,6 +26,20 @@ from tests.test_dns_transaction_collector import _row
 runner = CliRunner()
 
 
+@pytest.mark.parametrize("command", ("inspect", "quality"))
+def test_first_run_metadata_commands_registration_and_help(command: str) -> None:
+    """Complement TCP/DNS help coverage for the documented first-run workflow."""
+    root = runner.invoke(cli.app, ["--help"])
+    result = runner.invoke(cli.app, [command, "--help"])
+
+    assert root.exit_code == 0
+    assert command in root.stdout
+    assert result.exit_code == 0
+    assert "capture_path" in result.stdout
+    params = get_command(cli.app).commands[command].params
+    assert any("--json" in param.opts for param in params)
+
+
 def test_version() -> None:
     """The version command reports the package version."""
     result = runner.invoke(cli.app, ["version"])
