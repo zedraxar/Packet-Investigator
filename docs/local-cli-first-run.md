@@ -56,6 +56,7 @@ was absent everywhere; it describes this capture point and time window.
 To save a local structured report, use the implemented `--json` option:
 
 ```bash
+packet-investigator inspect capture.pcapng --json
 packet-investigator quality capture.pcapng --json
 packet-investigator tcp capture.pcapng --json
 packet-investigator dns capture.pcapng --json
