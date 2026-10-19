@@ -56,6 +56,11 @@ packet-investigator info
 packet-investigator --help
 ```
 
+For a capture-to-report walkthrough using the implemented `inspect`, `quality`,
+`tcp`, and `dns` commands, see the
+[first local PCAP investigation](docs/local-cli-first-run.md). It explains
+capture limitations, report privacy, and evidence-based interpretation.
+
 Typical local-capture commands are:
 
 ```bash
