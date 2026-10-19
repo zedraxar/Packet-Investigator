@@ -243,7 +243,10 @@ def _render_inspection(metadata: CaptureMetadata) -> None:
     console.print(table)
     console.print()
     console.print(
-        "Metadata inspection only. Diagnostic packet analysis is not implemented yet."
+        "Metadata inspection only. Next: use 'packet-investigator quality' to assess "
+        "capture suitability, 'packet-investigator tcp' for TCP conversation evidence, "
+        "or 'packet-investigator dns' for classic DNS transaction evidence. "
+        "Each command requires a capture path."
     )
 
 
