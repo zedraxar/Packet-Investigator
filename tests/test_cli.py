@@ -77,7 +77,12 @@ def test_inspect_success(monkeypatch: object, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "Capture Inspection" in result.stdout
     assert "1.50 KiB" in result.stdout
-    assert "Diagnostic packet analysis is not implemented" in result.stdout
+    output = " ".join(result.stdout.split())
+    assert "Metadata inspection only." in output
+    for command in ("quality", "tcp", "dns"):
+        assert f"packet-investigator {command}" in output
+    assert "Each command requires a capture path." in output
+    assert "not implemented" not in output
 
 
 def test_inspect_expected_error(monkeypatch: object) -> None:
@@ -103,6 +108,8 @@ def test_inspect_json(monkeypatch: object, tmp_path: Path) -> None:
     assert parsed["capture_format"] == "PCAPNG"
     assert parsed["packet_count"] == 2
     assert parsed["interface_ids"] == ["0", "1"]
+    assert "Metadata inspection only" not in result.stdout
+    assert "packet-investigator" not in result.stdout
 
 
 def _mock_dns_pipeline(

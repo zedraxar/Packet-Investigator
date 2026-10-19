@@ -103,9 +103,20 @@ human-readable size, packet count, first and last packet timestamps, duration,
 observed interface IDs when available, TShark version, and inspection status.
 The JSON form emits the same core metadata without terminal formatting.
 
-TShark remains the final validator of capture contents. The command does not
-inspect payloads, reconstruct conversations, diagnose protocols, or make
-ownership claims. Diagnostic packet analysis is not implemented.
+TShark remains the final validator of capture contents. The `inspect` command
+reports metadata only and ends its terminal output with guidance to the
+implemented analysis commands. Assess capture suitability first, then choose
+the protocol evidence relevant to your investigation:
+
+```bash
+packet-investigator quality path/to/capture.pcapng
+packet-investigator tcp path/to/capture.pcapng
+packet-investigator dns path/to/capture.pcapng
+```
+
+These commands report capture-bounded evidence and limitations; they do not
+establish root cause or technical ownership. `inspect --json` continues to emit
+only metadata, without next-step guidance.
 
 ## Capture-quality assessment
 
