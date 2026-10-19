@@ -311,6 +311,14 @@ packet-investigator info
 python -m packet_investigator version
 ```
 
+## DNS transaction analysis
+
+Analyze visible classic DNS transactions with `packet-investigator dns CAPTURE_PATH`
+(or add `--json` for structured output). Findings distinguish observed query,
+response, retry, truncation, and response-code evidence from possible causes.
+For a practical interpretation and privacy checklist, see the
+[DNS troubleshooting quickstart](docs/dns-troubleshooting-quickstart.md).
+
 ## Privacy guidance
 
 Packet captures can contain credentials, personal data, internal addresses, and
@@ -321,10 +329,10 @@ synthetic, sanitized, authorized, and free of credentials or sensitive payloads.
 ## Current project status
 
 Packet Investigator currently provides capture-file metadata inspection,
-capture-quality assessment, and deterministic TCP conversation analysis.
-Root-cause diagnosis, technical ownership assignment, capture correlation,
-application-protocol analysis, and HTML or other file-report generation are not
-implemented.
+capture-quality assessment, deterministic TCP conversation analysis, and
+classic DNS transaction analysis. Root-cause diagnosis, technical ownership
+assignment, capture correlation, other application-protocol analyzers, and
+HTML or other file-report generation are not implemented.
 
 ## License
 
