@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from click.utils import strip_ansi
 from typer.main import get_command
 from typer.testing import CliRunner
 
@@ -42,7 +43,7 @@ def test_root_help_guides_command_discovery_without_capture_processing(
     result = runner.invoke(cli.app, args)
 
     assert result.exit_code == exit_code
-    output = " ".join(result.output.split())
+    output = " ".join(strip_ansi(result.output).split())
     for command in ("inspect", "quality", "tcp", "dns"):
         assert f"packet-investigator {command} CAPTURE_PATH" in output
     assert "packet-investigator COMMAND --help" in output
