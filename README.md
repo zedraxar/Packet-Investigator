@@ -56,6 +56,11 @@ packet-investigator info
 packet-investigator --help
 ```
 
+Root help also shows a suggested capture workflow, JSON output guidance, and
+how to discover command options with `packet-investigator COMMAND --help`
+(for example, `packet-investigator dns --help`). Running without arguments
+shows the same help and retains the usage-error exit code of `2`.
+
 For a capture-to-report walkthrough using the implemented `inspect`, `quality`,
 `tcp`, and `dns` commands, see the
 [first local PCAP investigation](docs/local-cli-first-run.md). It explains

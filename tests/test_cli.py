@@ -26,6 +26,33 @@ from tests.test_dns_transaction_collector import _row
 runner = CliRunner()
 
 
+@pytest.mark.parametrize("args, exit_code", [(["--help"], 0), ([], 2)])
+def test_root_help_guides_command_discovery_without_capture_processing(
+    monkeypatch: pytest.MonkeyPatch, args: list[str], exit_code: int
+) -> None:
+    capture_calls = Mock(side_effect=AssertionError("Help must not process captures"))
+    for name in (
+        "inspect_capture",
+        "collect_capture_quality",
+        "collect_tcp_conversation_evidence",
+        "collect_dns_transaction_evidence",
+    ):
+        monkeypatch.setattr(cli, name, capture_calls)
+
+    result = runner.invoke(cli.app, args)
+
+    assert result.exit_code == exit_code
+    output = " ".join(result.output.split())
+    for command in ("inspect", "quality", "tcp", "dns"):
+        assert f"packet-investigator {command} CAPTURE_PATH" in output
+    assert "packet-investigator COMMAND --help" in output
+    assert "packet-investigator dns --help" in output
+    assert "--json for machine-readable output" in output
+    assert "processed locally with TShark" in output
+    assert "do not establish root cause or ownership" in output
+    capture_calls.assert_not_called()
+
+
 @pytest.mark.parametrize("command", ("inspect", "quality"))
 def test_first_run_metadata_commands_registration_and_help(command: str) -> None:
     """Complement TCP/DNS help coverage for the documented first-run workflow."""
