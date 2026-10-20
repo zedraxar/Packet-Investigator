@@ -40,6 +40,17 @@ from packet_investigator.utils.formatting import format_file_size
 
 app = typer.Typer(
     help="Evidence-driven offline packet capture investigation.",
+    epilog=(
+        "Start with packet-investigator inspect CAPTURE_PATH for metadata, then "
+        "packet-investigator quality CAPTURE_PATH for capture suitability. "
+        "Use packet-investigator tcp CAPTURE_PATH or packet-investigator dns "
+        "CAPTURE_PATH for protocol evidence.\n\n"
+        "Each capture command accepts --json for machine-readable output. "
+        "For command options, run packet-investigator COMMAND --help "
+        "(for example, packet-investigator dns --help).\n\n"
+        "Captures are processed locally with TShark. Reports describe observed "
+        "evidence and limitations; they do not establish root cause or ownership."
+    ),
     invoke_without_command=True,
     no_args_is_help=True,
 )
