@@ -14,6 +14,7 @@ from packet_investigator.analyzers import (
     analyze_dns_transactions,
     analyze_tcp_conversations,
 )
+from packet_investigator.investigation import investigate_capture
 from packet_investigator.models.capture import CaptureMetadata
 from packet_investigator.models.capture_quality import CaptureQualityStatus
 from packet_investigator.models.dns_transactions import DNSAnalysisStatus
@@ -36,11 +37,13 @@ from packet_investigator.renderers import (
     render_tcp_conversations_json,
     render_tcp_conversations_rich,
 )
+from packet_investigator.renderers.investigation import render_investigation_rich
 from packet_investigator.utils.formatting import format_file_size
 
 app = typer.Typer(
     help="Evidence-driven offline packet capture investigation.",
     epilog=(
+        "Run packet-investigator investigate CAPTURE_PATH for a combined report. "
         "Start with packet-investigator inspect CAPTURE_PATH for metadata, then "
         "packet-investigator quality CAPTURE_PATH for capture suitability. "
         "Use packet-investigator tcp CAPTURE_PATH or packet-investigator dns "
@@ -88,6 +91,30 @@ def info() -> None:
         "and deterministic classic DNS transaction analysis. It does not provide "
         "root-cause or ownership conclusions."
     )
+
+
+@app.command()
+def investigate(
+    capture_path: Annotated[
+        Path,
+        typer.Argument(help="Path to a .pcap or .pcapng capture file."),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit only machine-readable JSON."),
+    ] = False,
+) -> None:
+    """Run capture quality, TCP, and classic DNS in one local investigation."""
+    try:
+        report = investigate_capture(capture_path)
+    except CaptureInspectionError as error:
+        typer.echo(f"Error: {_safe_capture_error(error, capture_path)}", err=True)
+        raise typer.Exit(code=_exit_code(error)) from error
+    if json_output:
+        typer.echo(report.model_dump_json(indent=2))
+    else:
+        render_investigation_rich(report)
+    raise typer.Exit(code=report.exit_code)
 
 
 @app.command()
