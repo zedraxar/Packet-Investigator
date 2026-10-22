@@ -106,6 +106,19 @@ packaging and release gates, and release approval remain unverified. See
 [the DNS implementation audit](docs/dns-implementation-audit.md). Historical
 design: [Phase 6 DNS specification](docs/specs/phase-6-dns-transaction-analysis.md).
 
+## Implemented preview — two-capture TCP header comparison
+
+The approved two-capture contract now has typed models, a bounded offline
+TShark header collector, pure candidate matching, and
+`packet-investigator compare LEFT RIGHT [--json]` integration. Independent
+quality reports, explicit clock assurance, ambiguity, omission accounting,
+privacy, and generated synthetic two-file acceptance preserve the evidence
+boundary. See [the comparison guide](docs/capture-file-comparison.md).
+
+This does not establish packet identity, loss, latency, topology, ownership, NAT
+translation, or multi-point correlation. It is a development preview, not release
+approval. Cross-version and independent review gates remain open.
+
 ## Future work
 
 Future phases require separate engineering specifications and approval. Possible
@@ -114,7 +127,7 @@ directions include:
 - additional protocol-specific analyzers;
 - normalized shared packet evidence where multiple implemented consumers
   justify it;
-- endpoint capture comparison;
+- broader endpoint comparison beyond the implemented TCP header preview;
 - multi-point correlation;
 - deterministic privacy/redaction controls;
 - additional report formats; and
