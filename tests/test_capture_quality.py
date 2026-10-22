@@ -361,7 +361,7 @@ def test_complete_schema_example_round_trips() -> None:
 def test_capture_quality_models_do_not_change_capture_metadata_contract() -> None:
     serialized = json.loads(_capture_metadata_json_for_existing_inspect_contract())
 
-    assert serialized["path"] == "/synthetic/example.pcapng"
+    assert serialized["path"] == str(Path("/synthetic/example.pcapng"))
     assert serialized["status"] == "Inspection complete"
     assert "inspection_status" not in serialized
 

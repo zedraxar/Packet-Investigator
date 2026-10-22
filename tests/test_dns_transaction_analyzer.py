@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import FrozenInstanceError, replace
 from datetime import UTC, datetime, timedelta
 from ipaddress import IPv4Address
@@ -576,10 +577,10 @@ def test_analysis_does_not_mutate_input() -> None:
 
 
 def test_capture_path_is_removed_from_report() -> None:
-    private = _capture(path=Path("/tmp/private/dns-analysis.pcapng"))
+    private = _capture(path=(Path.cwd() / "private/dns-analysis.pcapng").resolve())
     report = _analyze(_collection(_evidence()), capture=private)
     assert report.capture.path is None
-    assert "/tmp/private" not in report.model_dump_json()
+    assert "path" not in json.loads(report.model_dump_json())["capture"]
 
 
 @pytest.mark.parametrize(

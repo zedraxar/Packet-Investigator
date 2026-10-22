@@ -564,7 +564,7 @@ def test_report_schema_privacy_and_deterministic_serialization() -> None:
 
 def test_report_rejects_capture_path_and_out_of_order_transactions() -> None:
     with pytest.raises(ValidationError, match="source path"):
-        _report(path=Path("/private/captures/dns-success.pcapng"))
+        _report(path=(Path.cwd() / "private/captures/dns-success.pcapng").resolve())
 
     values = _report().model_dump()
     values["transactions"] = (
