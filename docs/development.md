@@ -53,15 +53,21 @@ Use the repository's virtual environment and keep each change focused:
    capture. Never use a real capture without confirming it is authorized and
    non-sensitive.
 
-   Run the generated real-TShark TCP acceptance suite with:
+   Confirm TShark is available, then run the generated real-TShark acceptance
+   suites for capture quality, TCP, and DNS:
 
    ```bash
-   pytest tests/test_tcp_end_to_end.py
+   tshark --version
+   python -m pytest -q -ra \
+     tests/test_capture_quality_end_to_end.py \
+     tests/test_tcp_end_to_end.py \
+     tests/test_dns_end_to_end.py
    ```
 
    TShark must be on `PATH`. The tests generate captures in pytest-managed
    temporary directories and do not use live interfaces or external network
-   access.
+   access. Missing TShark causes integration tests to skip; report passed and
+   skipped counts separately rather than treating skips as executed coverage.
 
 9. Review the complete Git diff:
 
@@ -115,26 +121,34 @@ TShark rows, field-capability combinations, timestamp regression, and the
 50,000-conversation bound remain deterministic unit-test cases because they
 are parser/runtime boundaries rather than portable packet-file behaviors.
 
-## Provider-neutral CI guidance
+## Current CI validation
 
-No hosting or CI provider is configured. A future owner-selected CI service
-should run the repository's existing commands without adding publication
-credentials:
+GitHub Actions currently runs two validation workflows:
+
+- [Cloud development validation](../.github/workflows/cloud-validation.yml)
+  runs for pull requests targeting `feature/phase-6-planning` and manual
+  dispatches. Its `validate` job installs Python 3.12 and TShark on
+  `ubuntu-latest`, installs the development dependencies, and runs Ruff lint,
+  Ruff formatting, `mypy src`, and the complete pytest suite.
+- [DNS wire acceptance](../.github/workflows/dns-wire-acceptance.yml) runs for
+  pull requests changing the DNS capture generator, DNS end-to-end tests, or
+  that workflow, and for manual dispatches. It uses the same Python/TShark
+  setup and checks, including the complete pytest suite.
+
+To reproduce the validation commands locally with TShark on `PATH`:
 
 ```bash
 python -m pip install --editable ".[dev]"
 ruff check .
 ruff format --check .
 mypy src
-pytest
+python -m pytest -q -ra
 ```
 
-The minimum matrix should execute on Python 3.12 and the current development
-Python version. Where the runner can install TShark without privileged live
-capture, it should also run `tests/test_capture_quality_end_to_end.py` and
-`tests/test_tcp_end_to_end.py`. Missing TShark should remain an explicit,
-precisely reported integration-test skip rather than silently replacing those
-tests with mocks.
+These workflows currently validate Python 3.12 on one runner image; they do
+not establish compatibility across every supported Python or TShark version.
+Broader version coverage remains future work. TShark is installed for offline
+synthetic-capture analysis; validation does not require live-capture privileges.
 
 CI should not perform package publication, configure remotes, use live
 interfaces, upload captures, or require repository secrets merely to validate
