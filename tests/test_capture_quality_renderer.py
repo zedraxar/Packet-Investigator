@@ -287,7 +287,7 @@ def test_path_is_not_derived_when_absent() -> None:
 
 
 def test_existing_path_is_displayed_without_resolution() -> None:
-    path = Path("/synthetic/private/example.pcapng")
+    path = (Path.cwd() / "synthetic/private/example.pcapng").resolve()
 
     output = _render_plain(_assessment(path=path))
 
@@ -355,7 +355,7 @@ def test_invalid_json_indent_is_rejected(
 
 def test_json_path_privacy_matches_assessment() -> None:
     private = json.loads(render_capture_quality_json(_assessment()))
-    path = Path("/synthetic/private/example.pcapng")
+    path = (Path.cwd() / "synthetic/private/example.pcapng").resolve()
     disclosed = json.loads(render_capture_quality_json(_assessment(path=path)))
 
     assert "path" not in private["capture"]

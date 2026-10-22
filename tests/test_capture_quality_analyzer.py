@@ -36,7 +36,7 @@ def _metadata(
         None if start_time is None else start_time + timedelta(seconds=duration_seconds)
     )
     return CaptureMetadata(
-        path=Path("/synthetic/example.pcapng"),
+        path=(Path.cwd() / "synthetic/example.pcapng").resolve(),
         filename="example.pcapng",
         capture_format="PCAPNG",
         size_bytes=4096,
