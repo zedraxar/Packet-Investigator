@@ -100,6 +100,16 @@ See [docs/development.md](docs/development.md) for the complete workflow.
 
 ## Capture metadata inspection
 
+For one combined quality, TCP, and classic DNS report, run:
+
+```bash
+packet-investigator investigate path/to/capture.pcapng
+packet-investigator investigate path/to/capture.pcapng --json
+```
+
+See the [combined investigation workflow](docs/combined-investigation.md) for
+its report structure, exit codes, and evidence limitations.
+
 The implemented `inspect` command reads basic capture metadata without
 performing diagnostic analysis:
 
