@@ -21,9 +21,10 @@ Ownership statements must never be stronger than the available packet evidence.
 ## Operating modes
 
 The current single-capture commands inspect metadata, assess capture quality,
-and analyze TCP conversations. These broader modes remain planned:
+and analyze TCP conversations. Two-capture TCP header comparison is available
+through `compare`, with explicit clock assumptions and evidence limitations.
+The broader multi-point mode remains planned:
 
-- **Endpoint Comparison** — compare client-side and server-side captures.
 - **Multi-point Correlation** — correlate captures from firewalls, VPN
   gateways, proxies, servers, and other observation points.
 
@@ -99,6 +100,18 @@ pytest
 See [docs/development.md](docs/development.md) for the complete workflow.
 
 ## Capture metadata inspection
+
+To compare TCP header evidence at two observation points:
+
+```bash
+packet-investigator compare client.pcapng server.pcapng --assume-synchronized
+packet-investigator compare client.pcapng server.pcapng --clock-offset-ms=-200 --json
+```
+
+Only assert synchronization when independently verified. Without clock assurance,
+the command reports limited evidence. See the
+[two-capture comparison guide](docs/capture-file-comparison.md) for offset sign,
+exit codes, record limits, and interpretation boundaries.
 
 For one combined quality, TCP, and classic DNS report, run:
 
@@ -361,8 +374,9 @@ synthetic, sanitized, authorized, and free of credentials or sensitive payloads.
 
 Packet Investigator currently provides capture-file metadata inspection,
 capture-quality assessment, deterministic TCP conversation analysis, and
-classic DNS transaction analysis. Root-cause diagnosis, technical ownership
-assignment, capture correlation, other application-protocol analyzers, and
+classic DNS transaction analysis, a combined investigation command, and bounded
+two-capture TCP header comparison. Root-cause diagnosis, technical ownership
+assignment, multi-point correlation, other application-protocol analyzers, and
 HTML or other file-report generation are not implemented.
 
 ## License

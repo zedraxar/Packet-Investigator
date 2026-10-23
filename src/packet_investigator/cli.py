@@ -1,10 +1,12 @@
 """Command-line interface for Packet Investigator."""
 
 from datetime import datetime
+from decimal import Decimal, DecimalException, localcontext
 from pathlib import Path
 from typing import Annotated
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
@@ -14,8 +16,10 @@ from packet_investigator.analyzers import (
     analyze_dns_transactions,
     analyze_tcp_conversations,
 )
+from packet_investigator.comparison import compare_capture_files
 from packet_investigator.investigation import investigate_capture
 from packet_investigator.models.capture import CaptureMetadata
+from packet_investigator.models.capture_comparison import CaptureHeaders, ClockAlignment
 from packet_investigator.models.capture_quality import CaptureQualityStatus
 from packet_investigator.models.dns_transactions import DNSAnalysisStatus
 from packet_investigator.models.tcp_conversations import TCPAnalysisStatus
@@ -37,6 +41,9 @@ from packet_investigator.renderers import (
     render_tcp_conversations_json,
     render_tcp_conversations_rich,
 )
+from packet_investigator.renderers.capture_comparison import (
+    render_capture_comparison_rich,
+)
 from packet_investigator.renderers.investigation import render_investigation_rich
 from packet_investigator.utils.formatting import format_file_size
 
@@ -47,7 +54,9 @@ app = typer.Typer(
         "Start with packet-investigator inspect CAPTURE_PATH for metadata, then "
         "packet-investigator quality CAPTURE_PATH for capture suitability. "
         "Use packet-investigator tcp CAPTURE_PATH or packet-investigator dns "
-        "CAPTURE_PATH for protocol evidence.\n\n"
+        "CAPTURE_PATH for protocol evidence. "
+        "Use packet-investigator compare LEFT RIGHT for two-capture TCP evidence "
+        "with explicit clock assumptions.\n\n"
         "Each capture command accepts --json for machine-readable output. "
         "For command options, run packet-investigator COMMAND --help "
         "(for example, packet-investigator dns --help).\n\n"
@@ -88,7 +97,9 @@ def info() -> None:
     typer.echo(
         "Packet Investigator provides offline capture metadata inspection, "
         "capture-quality assessment, deterministic TCP conversation analysis, "
-        "and deterministic classic DNS transaction analysis. It does not provide "
+        "and deterministic classic DNS transaction analysis. Two-capture TCP "
+        "header comparison is available with explicit clock assumptions. "
+        "It does not provide "
         "root-cause or ownership conclusions."
     )
 
@@ -114,6 +125,114 @@ def investigate(
         typer.echo(report.model_dump_json(indent=2))
     else:
         render_investigation_rich(report)
+    raise typer.Exit(code=report.exit_code)
+
+
+def _alignment_from_options(
+    assume_synchronized: bool,
+    offset_ms: str | None,
+    tolerance_ms: str,
+) -> ClockAlignment:
+    if assume_synchronized and offset_ms is not None:
+        raise ValueError("Choose either synchronized clocks or a right-clock offset.")
+
+    def nanoseconds(value: str) -> int:
+        if len(value) > 40:
+            raise ValueError("Clock values must be finite millisecond numbers.")
+        try:
+            number = Decimal(value)
+            if not number.is_finite() or abs(number) > Decimal(2**63 - 1) / 10**6:
+                raise ValueError("Clock values are outside the supported range.")
+            with localcontext() as context:
+                context.prec = 80
+                scaled = number * 10**6
+            if (number and not scaled) or scaled != scaled.to_integral_value():
+                raise ValueError("Clock values must have whole-nanosecond precision.")
+            return int(scaled)
+        except DecimalException as error:
+            raise ValueError(
+                "Clock values must be finite millisecond numbers."
+            ) from error
+
+    return ClockAlignment(
+        basis=(
+            "synchronized"
+            if assume_synchronized
+            else "user_offset"
+            if offset_ms is not None
+            else "unverified"
+        ),
+        right_offset_ns=nanoseconds(offset_ms) if offset_ms is not None else 0,
+        tolerance_ns=nanoseconds(tolerance_ms),
+    )
+
+
+@app.command()
+def compare(
+    left: Annotated[
+        Path, typer.Argument(help="Capture at the LEFT observation point.")
+    ],
+    right: Annotated[
+        Path, typer.Argument(help="Capture at the RIGHT observation point.")
+    ],
+    left_label: Annotated[
+        str, typer.Option(help="Label for LEFT; no topology inferred.")
+    ] = "left",
+    right_label: Annotated[
+        str, typer.Option(help="Label for RIGHT; no topology inferred.")
+    ] = "right",
+    assume_synchronized: Annotated[
+        bool, typer.Option(help="Assert independently verified synchronized clocks.")
+    ] = False,
+    clock_offset_ms: Annotated[
+        str | None,
+        typer.Option(help="Milliseconds added to RIGHT timestamps; may be negative."),
+    ] = None,
+    tolerance_ms: Annotated[
+        str, typer.Option(help="Inclusive matching tolerance in milliseconds.")
+    ] = "1",
+    record_limit: Annotated[
+        int,
+        typer.Option(
+            min=1, max=100_000, help="Maximum retained TCP headers per capture."
+        ),
+    ] = 100_000,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Emit only machine-readable JSON.")
+    ] = False,
+) -> None:
+    """Compare two offline captures with explicit clock assumptions."""
+    try:
+        alignment = _alignment_from_options(
+            assume_synchronized, clock_offset_ms, tolerance_ms
+        )
+        CaptureHeaders(label=left_label, records=())
+        CaptureHeaders(label=right_label, records=())
+        if left_label == right_label:
+            raise ValueError("observation labels must be distinct")
+    except (ValueError, ValidationError) as error:
+        raise typer.BadParameter(
+            "Invalid comparison options. Use distinct, nonblank labels without control "
+            "characters, valid clock numbers, and only one clock assurance option."
+        ) from error
+    try:
+        report = compare_capture_files(
+            left,
+            right,
+            left_label=left_label,
+            right_label=right_label,
+            alignment=alignment,
+            record_limit=record_limit,
+        )
+    except CaptureInspectionError as error:
+        message = _safe_capture_error(error, left)
+        message = _safe_capture_error(CaptureInspectionError(message), right)
+        typer.echo(f"Error: {message}", err=True)
+        raise typer.Exit(code=_exit_code(error)) from error
+    if json_output:
+        typer.echo(report.model_dump_json(indent=2))
+    else:
+        render_capture_comparison_rich(report)
     raise typer.Exit(code=report.exit_code)
 
 
