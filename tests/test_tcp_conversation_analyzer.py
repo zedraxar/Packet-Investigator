@@ -1176,3 +1176,42 @@ def test_complete_report_round_trips_through_schema_model() -> None:
     restored = TCPAnalysisReport.model_validate_json(report.model_dump_json())
 
     assert restored == report
+
+
+@pytest.mark.parametrize(
+    ("quality_status", "quality_codes", "inherited"),
+    [
+        (CaptureQualityStatus.USABLE, (), False),
+        (CaptureQualityStatus.USABLE_WITH_LIMITATIONS, (), True),
+        (CaptureQualityStatus.LIMITED, (), True),
+        (CaptureQualityStatus.USABLE, ("MULTIPLE_INTERFACES_OBSERVED",), True),
+    ],
+)
+def test_summary_explains_inherited_quality_without_changing_conversation(
+    quality_status: CaptureQualityStatus,
+    quality_codes: tuple[str, ...],
+    inherited: bool,
+) -> None:
+    report = analyze_tcp_conversations(
+        _collection(_complete_rows()),
+        capture=_capture(),
+        capture_quality_status=quality_status,
+        capture_quality_limitation_codes=quality_codes,
+    )
+    conversation = report.conversations[0]
+    assert conversation.status is TCPConversationStatus.COMPLETE
+    assert conversation.findings == ()
+    assert ("capture-quality" in report.summary.lower()) is inherited
+    assert report.analysis_statistics.complete_with_findings_conversations == 0
+    if inherited:
+        assert "capture quality" in report.summary.lower()
+
+
+def test_tcp_findings_do_not_invent_inherited_quality_warnings() -> None:
+    rows = _complete_rows()[:3]
+    rows.append(
+        _row(4, reverse=True, sequence=201, acknowledgment=101, flags=0x14, reset=True)
+    )
+    report = _analyze(rows)
+    assert report.status is TCPAnalysisStatus.ANALYZED_WITH_FINDINGS
+    assert "capture-quality" not in report.summary.lower()

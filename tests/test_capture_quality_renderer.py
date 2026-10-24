@@ -369,3 +369,17 @@ def test_json_rendering_does_not_mutate_model_serialization() -> None:
     render_capture_quality_json(assessment)
 
     assert assessment.model_dump_json() == serialized_before
+
+
+def test_unassessed_handshake_statistic_is_explicit_without_json_schema_change() -> (
+    None
+):
+    assessment = _assessment()
+    output = _render_plain(assessment)
+    row = next(
+        line for line in output.splitlines() if "Incomplete handshake flows:" in line
+    )
+    assert "Not assessed" in row
+    document = json.loads(render_capture_quality_json(assessment))
+    assert document["statistics"]["incomplete_handshake_flows"] == 0
+    assert assessment.statistics.incomplete_handshake_flows == 0

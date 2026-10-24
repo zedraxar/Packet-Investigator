@@ -834,3 +834,32 @@ def test_public_collector_validates_timeout(timeout: float, tmp_path: Path) -> N
     capture.touch()
     with pytest.raises(ValueError, match="greater than zero"):
         dns_transactions.collect_dns_transaction_evidence(capture, timeout=timeout)
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        {"retransmission": "1", "retransmit_request": "1"},
+        {"retransmission": "1", "retransmit_response": "1"},
+        {"retransmission": "1", "retransmit_request": "1", "retransmit_response": "1"},
+    ],
+)
+@pytest.mark.parametrize("response", [False, True])
+def test_multiple_retry_flags_count_one_message_per_provenance(
+    flags: dict[str, str],
+    response: bool,
+) -> None:
+    retry = _response(**flags) if response else _row(frame=2, **flags)
+    result = _collect([_row(), retry])
+    counts = dict(result.transactions[0].retry_indicator_counts)
+    assert result.tshark_retry_indicator_messages == 1
+    assert counts[DNSEvidenceProvenance.TSHARK_DERIVED] == 1
+    assert counts.get(DNSEvidenceProvenance.RAW_HEADER, 0) == int(not response)
+
+
+def test_unflagged_repeated_queries_only_count_raw_evidence() -> None:
+    result = _collect([_row(), _row(frame=2), _row(frame=3)])
+    assert result.tshark_retry_indicator_messages == 0
+    assert result.transactions[0].retry_indicator_counts == (
+        (DNSEvidenceProvenance.RAW_HEADER, 2),
+    )

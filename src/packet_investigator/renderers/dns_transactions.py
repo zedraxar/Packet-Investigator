@@ -206,6 +206,14 @@ def _print_report_summary(
         )
     )
 
+    if statistics.retry_indicator_messages:
+        console.print(
+            Text(
+                "Retry counts combine raw repeated queries and TShark-marked messages; "
+                "these sources may overlap and do not count unique retries."
+            )
+        )
+
 
 def _transaction_table(
     transactions: tuple[DNSTransactionAssessment, ...],

@@ -228,3 +228,35 @@ def test_ipv6_and_tcp_dns_are_independently_decoded(
         )
         assert result.returncode == 0, result.stderr
         assert len(result.stdout.splitlines()) == 2
+
+
+@_REQUIRES_TSHARK
+def test_real_repeated_unanswered_queries_have_consistent_retry_units(
+    tmp_path: Path,
+) -> None:
+    from tests.fixtures.captures import _write_pcapng
+    from tests.fixtures.dns_captures import _query
+
+    path = tmp_path / "synthetic-unanswered-retries.pcapng"
+    _write_pcapng(path, (_query(), _query(), _query()))
+    report = _report(path)
+    assert len(report.transactions) == 1
+    transaction = report.transactions[0]
+    counts = dict(transaction.evidence.retry_indicator_counts)
+    assert transaction.evidence.request_count == 3
+    assert transaction.evidence.response_count == 0
+    assert counts["raw_header"] == 2
+    finding = next(
+        item
+        for item in transaction.findings
+        if item.code == "DNS_QUERY_RETRY_INDICATORS_OBSERVED"
+    )
+    assert report.statistics.retry_indicator_messages == sum(counts.values())
+    assert finding.observation_count == report.statistics.retry_indicator_messages
+    assert "overlap" in finding.interpretation
+    result = _RUNNER.invoke(cli.app, ["dns", str(path), "--json"])
+    assert result.exit_code == 0
+    document = json.loads(result.stdout)
+    assert (
+        document["statistics"]["retry_indicator_messages"] == finding.observation_count
+    )

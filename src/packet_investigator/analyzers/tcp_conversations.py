@@ -145,7 +145,12 @@ def analyze_tcp_conversations(
         capture_quality_status=capture_quality_status,
         capture_quality_limitation_codes=capture_quality_limitation_codes,
         status=status,
-        summary=_report_summary(status, len(conversations)),
+        summary=_report_summary(
+            status,
+            len(conversations),
+            capture_quality_status=capture_quality_status,
+            capture_quality_limitation_codes=capture_quality_limitation_codes,
+        ),
         analysis_statistics=TCPAnalysisStatistics(
             rows_processed=collection.rows_processed,
             usable_tcp_rows=collection.usable_tcp_rows,
@@ -1486,15 +1491,21 @@ def _conversation_summary(status: TCPConversationStatus) -> str:
     }[status]
 
 
-def _report_summary(status: TCPAnalysisStatus, conversation_count: int) -> str:
-    return {
+def _report_summary(
+    status: TCPAnalysisStatus,
+    conversation_count: int,
+    *,
+    capture_quality_status: CaptureQualityStatus,
+    capture_quality_limitation_codes: tuple[str, ...],
+) -> str:
+    summary = {
         TCPAnalysisStatus.ANALYZED: (
             f"{conversation_count} TCP conversations were analyzed with no "
             "notable TCP findings."
         ),
         TCPAnalysisStatus.ANALYZED_WITH_FINDINGS: (
             f"{conversation_count} TCP conversations were analyzed with findings "
-            "or partial visibility."
+            "or limitations."
         ),
         TCPAnalysisStatus.LIMITED: (
             f"TCP analysis of {conversation_count} conversations is materially limited."
@@ -1503,6 +1514,20 @@ def _report_summary(status: TCPAnalysisStatus, conversation_count: int) -> str:
             "Insufficient usable TCP evidence was available for conversation analysis."
         ),
     }[status]
+    if status is not TCPAnalysisStatus.INSUFFICIENT and (
+        capture_quality_status
+        in {
+            CaptureQualityStatus.USABLE_WITH_LIMITATIONS,
+            CaptureQualityStatus.LIMITED,
+        }
+        or capture_quality_limitation_codes
+    ):
+        summary += (
+            f" Capture quality is {capture_quality_status.value}; inherited "
+            "capture-quality warnings or limitations affect the overall status, "
+            "independently of individual TCP conversation findings."
+        )
+    return summary
 
 
 __all__ = ["analyze_tcp_conversations"]
