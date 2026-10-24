@@ -715,3 +715,28 @@ def test_collection_statistics_are_preserved() -> None:
     report = _analyze(collection)
     assert report.statistics.rows_processed == 9
     assert report.statistics.response_code_counts == ((0, 1),)
+
+
+def test_retry_summary_and_finding_use_same_units_and_explain_overlap() -> None:
+    report = _analyze(
+        _collection(
+            _evidence(
+                requests=3,
+                responses=0,
+                response_codes=(),
+                retries=(
+                    (DNSEvidenceProvenance.RAW_HEADER, 2),
+                    (DNSEvidenceProvenance.TSHARK_DERIVED, 2),
+                ),
+            )
+        )
+    )
+    finding = next(
+        item
+        for item in report.transactions[0].findings
+        if item.code == "DNS_QUERY_RETRY_INDICATORS_OBSERVED"
+    )
+    assert report.statistics.retry_indicator_messages == finding.observation_count == 4
+    assert finding.evidence["retry_indicators"] == 4
+    assert "overlap" in finding.interpretation.lower()
+    assert "unique retries" in finding.interpretation.lower()

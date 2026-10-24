@@ -277,14 +277,15 @@ class _TransactionState:
         self.frames.add(message.frame_number)
         self.messages.add(message)
         self.answers.extend(message.answers)
-        derived_count = sum(
+        # Count marked messages, not overlapping flags on the same message.
+        # Keep this unit consistent with the collection-wide retry statistic.
+        if any(
             (
                 message.tshark_retransmission,
                 message.tshark_retransmit_request,
                 message.tshark_retransmit_response,
             )
-        )
-        for _ in range(derived_count):
+        ):
             self._increment_retry(DNSEvidenceProvenance.TSHARK_DERIVED)
 
     def _increment_retry(self, provenance: DNSEvidenceProvenance) -> None:

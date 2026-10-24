@@ -111,7 +111,7 @@ def _statistics_table(assessment: CaptureQualityAssessment) -> Table:
         ),
         (
             "Incomplete handshake flows",
-            f"{statistics.incomplete_handshake_flows:,}",
+            "Not assessed (use TCP analysis)",
         ),
         ("Truncated frames", f"{statistics.truncated_frames:,}"),
         (

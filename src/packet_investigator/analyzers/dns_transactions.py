@@ -231,7 +231,10 @@ def _transaction_findings(
                 DNSFindingSeverity.WARNING,
                 "Repeated matching query observations or TShark-derived retry "
                 "indicators were present.",
-                "These indicators do not establish packet loss or application intent.",
+                "Raw repeated-query and TShark-marked message counts may overlap; "
+                "their sum is not a count of unique retries. Multiple TShark flags "
+                "on one message count once. These indicators do not establish "
+                "packet loss or application intent.",
                 retry_count,
                 frames,
                 tuple(item for item, _ in evidence.retry_indicator_counts),

@@ -153,3 +153,11 @@ synthetic-capture analysis; validation does not require live-capture privileges.
 CI should not perform package publication, configure remotes, use live
 interfaces, upload captures, or require repository secrets merely to validate
 the project.
+
+
+## Reporting consistency checks
+
+See [reporting regression notes](reporting-regression-notes.md) for the
+capture-quality handshake placeholder, TCP status propagation, and DNS retry
+counting units. Focused tests and generated real-TShark acceptance guard these
+boundaries without changing schema 1.0 field names or command exit codes.

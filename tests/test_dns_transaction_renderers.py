@@ -344,3 +344,16 @@ def test_json_retains_complete_report_beyond_rich_limit() -> None:
         recommendations=(),
     )
     assert len(json.loads(render_dns_transactions_json(report))["transactions"]) == 101
+
+
+@pytest.mark.parametrize("retry_count", [0, 2])
+def test_retry_summary_explains_overlapping_sources_only_when_present(
+    retry_count: int,
+) -> None:
+    output = _rich(
+        make_report(transactions=(make_transaction(retry_count=retry_count),))
+    )
+    assert ("do not count unique retries" in output) is bool(retry_count)
+    if retry_count:
+        assert "TShark-marked messages" in output
+        assert "tshark_derived=2" in output
