@@ -33,6 +33,7 @@ from packet_investigator.parsers import (
 from packet_investigator.parsers.tshark import (
     CaptureInspectionError,
     CaptureValidationError,
+    TsharkNotFoundError,
     inspect_capture,
 )
 from packet_investigator.renderers import (
@@ -137,7 +138,7 @@ def investigate(
     try:
         report = investigate_capture(capture_path)
     except CaptureInspectionError as error:
-        typer.echo(f"Error: {_safe_capture_error(error, capture_path)}", err=True)
+        _print_capture_error(error, _safe_capture_error(error, capture_path))
         raise typer.Exit(code=_exit_code(error)) from error
     if output_path is not None:
         _save_report(
@@ -261,7 +262,7 @@ def compare(
     except CaptureInspectionError as error:
         message = _safe_capture_error(error, left)
         message = _safe_capture_error(CaptureInspectionError(message), right)
-        typer.echo(f"Error: {message}", err=True)
+        _print_capture_error(error, message)
         raise typer.Exit(code=_exit_code(error)) from error
     if output_path is not None:
         _save_report(
@@ -301,7 +302,7 @@ def inspect(
     try:
         metadata = inspect_capture(capture_path)
     except CaptureInspectionError as error:
-        typer.echo(f"Error: {error}", err=True)
+        _print_capture_error(error, str(error))
         raise typer.Exit(code=_exit_code(error)) from error
 
     if output_path is not None:
@@ -342,7 +343,7 @@ def quality(
         metadata = inspect_capture(capture_path)
         collection = collect_capture_quality(capture_path)
     except CaptureInspectionError as error:
-        typer.echo(f"Error: {error}", err=True)
+        _print_capture_error(error, str(error))
         raise typer.Exit(code=_exit_code(error)) from error
 
     assessment = analyze_capture_quality(metadata, collection)
@@ -388,7 +389,7 @@ def tcp(
         quality_assessment = analyze_capture_quality(metadata, quality_collection)
         tcp_collection = collect_tcp_conversation_evidence(capture_path)
     except CaptureInspectionError as error:
-        typer.echo(f"Error: {_safe_capture_error(error, capture_path)}", err=True)
+        _print_capture_error(error, _safe_capture_error(error, capture_path))
         raise typer.Exit(code=_exit_code(error)) from error
 
     report = analyze_tcp_conversations(
@@ -448,7 +449,7 @@ def dns(
         quality_assessment = analyze_capture_quality(metadata, quality_collection)
         dns_collection = collect_dns_transaction_evidence(capture_path)
     except CaptureInspectionError as error:
-        typer.echo(f"Error: {_safe_capture_error(error, capture_path)}", err=True)
+        _print_capture_error(error, _safe_capture_error(error, capture_path))
         raise typer.Exit(code=_exit_code(error)) from error
 
     report = analyze_dns_transactions(
@@ -601,3 +602,20 @@ def _save_report(
     except ReportOutputError as error:
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(code=1) from error
+
+
+def _print_capture_error(error: CaptureInspectionError, message: str) -> None:
+    """Keep existing error prefixes and add short first-run recovery guidance."""
+    typer.echo(f"Error: {message}", err=True)
+    if isinstance(error, CaptureValidationError):
+        typer.echo(
+            "Next: Select an existing .pcap or .pcapng file you can read. "
+            "Quote paths containing spaces.",
+            err=True,
+        )
+    elif isinstance(error, TsharkNotFoundError):
+        typer.echo(
+            "Next: Run 'tshark --version'. If that fails, install TShark "
+            "or add its installation folder to PATH.",
+            err=True,
+        )
