@@ -144,3 +144,10 @@ builder, finding engine, and TCP analyzer as separate later phases. Phase 5
 instead delivered a focused, bounded TCP subsystem using the approved hybrid
 conversation-identity design. Those earlier milestone numbers are superseded;
 their useful concepts may be reconsidered only through a new specification.
+
+## Proposed Windows desktop preview
+
+A native capture-picker, existing investigation report view and safe export flow,
+plus a per-user Windows installer, are proposed in the
+[desktop and installer design](docs/specs/windows-desktop-preview.md).
+This is awaiting design approval; no GUI or installer is implemented yet.
