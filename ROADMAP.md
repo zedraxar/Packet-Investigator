@@ -145,9 +145,10 @@ instead delivered a focused, bounded TCP subsystem using the approved hybrid
 conversation-identity design. Those earlier milestone numbers are superseded;
 their useful concepts may be reconsidered only through a new specification.
 
-## Proposed Windows desktop preview
+## Windows desktop preview
 
-A native capture-picker, existing investigation report view and safe export flow,
-plus a per-user Windows installer, are proposed in the
-[desktop and installer design](docs/specs/windows-desktop-preview.md).
-This is awaiting design approval; no GUI or installer is implemented yet.
+The user approved the [desktop and installer design](docs/specs/windows-desktop-preview.md).
+The implementation branch provides a native capture picker, background investigation,
+existing report rendering and safe exports, plus an unsigned per-user Windows
+installer build. See [usage and remaining acceptance gates](docs/windows-desktop-preview.md).
+This is a development preview, not release approval.

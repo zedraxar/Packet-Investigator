@@ -254,6 +254,7 @@ def collect_capture_quality(
     capture_path: Path,
     *,
     timeout_seconds: float | None = None,
+    tshark_executable: str = "tshark",
 ) -> CaptureQualityCollection:
     """Collect bounded quality statistics from a validated capture."""
     timeout = DEFAULT_TIMEOUT_SECONDS if timeout_seconds is None else timeout_seconds
@@ -261,7 +262,7 @@ def collect_capture_quality(
         raise ValueError("Timeout must be greater than zero.")
 
     path, _ = validate_capture_path(capture_path)
-    executable = find_tshark()
+    executable = find_tshark(tshark_executable)
     supported_fields = get_tshark_field_capabilities(
         executable,
         timeout,

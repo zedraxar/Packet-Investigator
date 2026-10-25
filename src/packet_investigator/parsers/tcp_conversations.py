@@ -896,13 +896,14 @@ def collect_tcp_conversation_evidence(
     capture_path: Path,
     *,
     timeout_seconds: float | None = None,
+    tshark_executable: str = "tshark",
 ) -> TCPConversationCollection:
     """Collect bounded normalized TCP evidence from a validated capture."""
     timeout = DEFAULT_TIMEOUT_SECONDS if timeout_seconds is None else timeout_seconds
     if isinstance(timeout, bool) or timeout <= 0:
         raise ValueError("Timeout must be greater than zero.")
     path, _ = validate_capture_path(capture_path)
-    executable = find_tshark()
+    executable = find_tshark(tshark_executable)
     supported = get_tshark_field_capabilities(executable, timeout, _ALL_FIELDS)
     projection = _build_projection(supported)
     return stream_tshark_fields(

@@ -40,6 +40,9 @@ dev = [
 [project.scripts]
 packet-investigator = "packet_investigator.cli:app"
 
+[project.gui-scripts]
+packet-investigator-gui = "packet_investigator.desktop:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

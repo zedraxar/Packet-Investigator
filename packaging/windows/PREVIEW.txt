@@ -1,0 +1,9 @@
+Packet Investigator — unsigned desktop preview
+
+Select a saved PCAP/PCAPNG, click Investigate, then save text or JSON.
+Python is included. Install Wireshark's TShark component separately, or use Locate TShark in the app. Npcap/live capture is not required for saved files.
+
+Analysis stays local. No upload, telemetry or automatic report history.
+Existing files are never overwritten. Keep exported reports outside the application installation folder.
+
+This is an unsigned local test build, not an approved public release. Windows 11 x64 is the initial test target. Signing and clean-machine acceptance remain separate release gates. Analysis findings retain their evidence limitations.

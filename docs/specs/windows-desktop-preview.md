@@ -1,7 +1,8 @@
 # Windows desktop and installer preview
 
-Status: **proposed; awaiting design approval**. No GUI, executable or installer
-is implemented by this document. Related backlog: [issue #5](https://github.com/zedraxar/Packet-Investigator/issues/5).
+Status: **approved by the user on 2026-10-25; implementation in review**.
+This document preserves the approved design and pre-implementation baseline.
+See [current usage/build status](../windows-desktop-preview.md). Related backlog: [issue #5](https://github.com/zedraxar/Packet-Investigator/issues/5).
 Baseline: merged PR #26, commit `de98cda95a45206faddd92e6ae11b9fce1a1aaa1`.
 
 ## User outcome and first scope

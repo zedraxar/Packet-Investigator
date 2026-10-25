@@ -745,7 +745,7 @@ def test_public_collector_reuses_safe_tshark_boundaries(
     monkeypatch.setattr(
         tcp_conversations,
         "find_tshark",
-        lambda: "/usr/bin/tshark",
+        lambda executable="tshark": "/usr/bin/tshark",
     )
     monkeypatch.setattr(
         tcp_conversations,
