@@ -1,14 +1,13 @@
 # Packet Investigator
 
-Packet Investigator is a local, vendor-agnostic application planned for offline
-PCAP and PCAPNG analysis with TShark and Python. It is intended to correlate
-network evidence, explain what the packets demonstrate, and identify useful
-next capture points without overstating responsibility.
+Packet Investigator analyzes saved PCAP and PCAPNG files locally with TShark
+and Python. It reports capture quality, TCP and classic DNS evidence, and next
+verification steps without claiming root cause or device ownership.
 
 ## Evidence-driven philosophy
 
-Reports will keep packet observations separate from interpretation. Each
-finding will follow this evidence model:
+Reports keep packet observations separate from interpretation. Findings follow
+this evidence model:
 
 1. Observed Facts
 2. Technical Interpretation
@@ -28,53 +27,64 @@ The broader multi-point mode remains planned:
 - **Multi-point Correlation** — correlate captures from firewalls, VPN
   gateways, proxies, servers, and other observation points.
 
-## Installation
+## Installation and first run
 
-Python 3.12 or newer and TShark are required. Confirm TShark is available:
+You need Python 3.12+ and [Wireshark with the TShark component](https://www.wireshark.org/docs/wsug_html_chunked/ChBuildInstallWinInstall.html).
+Packet Investigator is not published to a package index. Start in an authorized
+local checkout (the folder containing `pyproject.toml`). Check `python --version`
+(or `python3 --version` on POSIX) before creating a virtual environment.
 
-```bash
+**Windows PowerShell:**
+
+```powershell
 tshark --version
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install .
+.\.venv\Scripts\packet-investigator.exe --help
 ```
 
-Packet Investigator is not currently published to a package index. Install a
-locally built wheel:
+**Linux/macOS shell:**
 
-```bash
-python -m pip install dist/packet_investigator-0.5.0-py3-none-any.whl
+```sh
+tshark --version
+python3 -m venv .venv
+.venv/bin/python -m pip install .
+.venv/bin/packet-investigator --help
 ```
 
-Or install directly from an authorized local repository checkout:
+Use a fresh environment, or reuse your existing project `.venv` if it is already
+installed. Activation is optional; these explicit executable paths work without
+running PowerShell activation scripts. See [Python's venv guidance](https://docs.python.org/3.12/library/venv.html).
+If Python opens the Microsoft Store, TShark is missing from PATH, or a command
+fails, use the [first-run troubleshooting steps](docs/local-cli-first-run.md#common-first-run-problems).
+A wheel installation is optional only when you already have an authorized wheel;
+there is no prebuilt `dist/` wheel in a fresh source checkout.
 
-```bash
-python -m pip install .
+### Capture → investigate → save
+
+Replace the capture path with a file that actually exists. If you do not have
+one, the [first-run walkthrough](docs/local-cli-first-run.md) explains how to
+generate a synthetic example from the checkout without collecting live traffic.
+
+```powershell
+$capture = "C:\captures\your capture.pcapng"
+Test-Path -LiteralPath $capture -PathType Leaf
+.\.venv\Scripts\packet-investigator.exe investigate "$capture"
+.\.venv\Scripts\packet-investigator.exe investigate "$capture" --output report.txt
+.\.venv\Scripts\packet-investigator.exe investigate "$capture" --json --output report.json
+Get-Item .\report.txt, .\report.json
 ```
 
-Verify the installed command:
+The path check must print `True`. Output filenames must be new: existing files
+are never overwritten. Saving is quiet on success; check the files and
+`$LASTEXITCODE` immediately after the CLI command. Use `--details` to expand DNS
+terminal evidence; `--json` includes all retained evidence beyond display limits.
+On POSIX, use `.venv/bin/packet-investigator` and quote the capture path similarly.
 
-```bash
-packet-investigator --version
-packet-investigator info
-packet-investigator --help
-```
-
-Root help also shows a suggested capture workflow, JSON output guidance, and
-how to discover command options with `packet-investigator COMMAND --help`
-(for example, `packet-investigator dns --help`). Running without arguments
-shows the same help and retains the usage-error exit code of `2`.
-
-For a capture-to-report walkthrough using the implemented `inspect`, `quality`,
-`tcp`, and `dns` commands, see the
-[first local PCAP investigation](docs/local-cli-first-run.md). It explains
-capture limitations, report privacy, and evidence-based interpretation.
-
-Typical local-capture commands are:
-
-```bash
-packet-investigator inspect path/to/capture.pcapng
-packet-investigator quality path/to/capture.pcapng
-packet-investigator tcp path/to/capture.pcapng
-packet-investigator tcp path/to/capture.pcapng --json
-```
+For metadata only, run `inspect`; individual `quality`, `tcp`, and `dns` commands
+remain available. Each capture-report command supports `--json` and `--output`.
+Use `COMMAND --help` to see its options. The [full first-run walkthrough](docs/local-cli-first-run.md)
+covers installation checks, report interpretation, saved files and common errors.
 
 ## Development environment
 
@@ -261,7 +271,7 @@ Representative finding codes include `TCP_SYN_RETRY_OBSERVED`,
 Packet Investigator — TCP Conversation Analysis
 Capture: reset-after-establishment.pcapng
 Overall status: ANALYZED WITH FINDINGS
-1 TCP conversations were analyzed with findings or partial visibility.
+1 TCP conversations were analyzed with findings or limitations.
 
 Conversation summary
 tcp-000001  192.0.2.10:49152 ↔ 198.51.100.20:443
