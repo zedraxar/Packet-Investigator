@@ -360,6 +360,13 @@ python -m packet_investigator version
 Analyze visible classic DNS transactions with `packet-investigator dns CAPTURE_PATH`
 (or add `--json` for structured output). Findings distinguish observed query,
 response, retry, truncation, and response-code evidence from possible causes.
+The terminal report defaults to findings and up to ten transaction summaries.
+Use `packet-investigator dns CAPTURE_PATH --details` for per-transaction evidence
+(up to 100 transactions); `--json` always includes every retained transaction.
+The same `--details` option expands the DNS section of `investigate`.
+TCP and DNS summary identities wrap instead of being abbreviated at common
+terminal widths.
+
 For a practical interpretation and privacy checklist, see the
 [DNS troubleshooting quickstart](docs/dns-troubleshooting-quickstart.md).
 

@@ -352,3 +352,56 @@ def test_renderer_presents_finding_codes_without_policy(code: str) -> None:
 def test_json_rejects_invalid_indentation(indent: object) -> None:
     with pytest.raises((TypeError, ValueError)):
         render_tcp_conversations_json(make_report(), indent=indent)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("width", [80, 100, 120, 160, 180])
+@pytest.mark.parametrize("ipv6", [False, True])
+def test_summary_preserves_ids_and_endpoints_at_common_widths(
+    width: int, ipv6: bool
+) -> None:
+    from ipaddress import IPv6Address
+
+    from packet_investigator.models.tcp_conversations import Endpoint
+
+    conversations = []
+    for index in range(8):
+        c = make_conversation(
+            f"tcp-{index + 1:06d}",
+            status=TCPConversationStatus.COMPLETE,
+            findings=(),
+            limitations=(),
+        )
+        if ipv6:
+            a = Endpoint(
+                ip_version=6,
+                address=IPv6Address("2001:db8:1234:5678:90ab:cdef:1234:5678"),
+                port=50000 + index,
+            )
+            b = Endpoint(
+                ip_version=6,
+                address=IPv6Address("2001:db8:4321:8765:90ab:cdef:4321:8765"),
+                port=443,
+            )
+            c = c.model_copy(
+                update={
+                    "identity": c.identity.model_copy(
+                        update={"endpoint_a": a, "endpoint_b": b}
+                    )
+                }
+            )
+        conversations.append(c)
+    report = make_report(conversations=tuple(conversations))
+    output = _render_plain(report, width=width)
+    summary = output.split("Conversation summary", 1)[1].split(
+        "Conversation details", 1
+    )[0]
+    for c in conversations:
+        assert c.identity.conversation_id in summary
+        for endpoint in [c.identity.endpoint_a, c.identity.endpoint_b]:
+            address = str(endpoint.address)
+            display = (
+                f"[{address}]:{endpoint.port}" if ipv6 else f"{address}:{endpoint.port}"
+            )
+            assert display in summary
+    assert "…" not in summary
+    assert max(map(len, output.splitlines())) <= width

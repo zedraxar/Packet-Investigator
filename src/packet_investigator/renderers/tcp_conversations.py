@@ -24,7 +24,6 @@ from packet_investigator.utils.formatting import format_file_size
 
 _SUMMARY_LIMIT = 20
 _DETAIL_LIMIT = 5
-_NARROW_CONSOLE_WIDTH = 100
 _Scalar = int | float | str | bool | None
 _CONVERSATION_STATUS_RANK = {
     TCPConversationStatus.INSUFFICIENT: 0,
@@ -66,10 +65,7 @@ def render_tcp_conversations_rich(
 
     if report.conversations:
         _print_section(output, "Conversation summary")
-        if output.width < _NARROW_CONSOLE_WIDTH:
-            _print_compact_summaries(output, summaries)
-        else:
-            output.print(_conversation_summary_table(summaries))
+        _print_compact_summaries(output, summaries)
         if len(summaries) < len(report.conversations):
             output.print(
                 f"Showing {len(summaries)} of "
@@ -151,45 +147,6 @@ def _print_capture_summary(console: Console, report: TCPAnalysisReport) -> None:
         rows.insert(1, ("Path", str(capture.path)))
     _print_section(console, "Capture summary")
     console.print(_key_value_table(rows))
-
-
-def _conversation_summary_table(
-    conversations: tuple[TCPConversationAssessment, ...],
-) -> Table:
-    table = Table(show_lines=False, expand=False)
-    for label in (
-        "ID",
-        "Endpoints",
-        "Initiator",
-        "Packets A→B / B→A",
-        "Payload A→B / B→A",
-        "Duration",
-        "Handshake",
-        "Closure",
-        "RST",
-        "Retrans.",
-        "Status",
-    ):
-        table.add_column(label)
-    for conversation in conversations:
-        statistics = conversation.statistics
-        table.add_row(
-            conversation.identity.conversation_id,
-            _endpoint_pair(conversation),
-            _endpoint_reference(conversation.roles.observed_initiator),
-            f"{statistics.a_to_b.packets:,} / {statistics.b_to_a.packets:,}",
-            (
-                f"{statistics.a_to_b.payload_bytes:,} / "
-                f"{statistics.b_to_a.payload_bytes:,}"
-            ),
-            _format_duration(statistics.duration_seconds),
-            _label(conversation.handshake.state.value),
-            _label(conversation.closure.state.value),
-            f"{conversation.closure.reset_count:,}",
-            f"{conversation.symptoms.retransmission_indicator_frames:,}",
-            _label(conversation.status.value),
-        )
-    return table
 
 
 def _print_compact_summaries(

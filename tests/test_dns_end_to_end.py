@@ -260,3 +260,26 @@ def test_real_repeated_unanswered_queries_have_consistent_retry_units(
     assert (
         document["statistics"]["retry_indicator_messages"] == finding.observation_count
     )
+
+
+@_REQUIRES_TSHARK
+def test_real_dns_cli_details_and_default_share_complete_json(
+    dns_captures: dict[str, Path],
+) -> None:
+    path = dns_captures["multiple_transactions"]
+    base = ["dns", str(path)]
+    compact = _RUNNER.invoke(cli.app, base)
+    detailed = _RUNNER.invoke(cli.app, [*base, "--details"])
+    first = _RUNNER.invoke(cli.app, [*base, "--json"])
+    second = _RUNNER.invoke(cli.app, [*base, "--details", "--json"])
+    assert (
+        compact.exit_code
+        == detailed.exit_code
+        == first.exit_code
+        == second.exit_code
+        == 0
+    )
+    assert "Transaction details" not in compact.stdout
+    assert "Transaction details" in detailed.stdout
+    assert first.stdout == second.stdout
+    assert len(json.loads(first.stdout)["transactions"]) == 2

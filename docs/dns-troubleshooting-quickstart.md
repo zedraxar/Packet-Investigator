@@ -46,3 +46,16 @@ For implementation scope and known validation gaps, see
 [the roadmap](../ROADMAP.md). Real-TShark generated acceptance covers the
 documented scenarios; cross-version compatibility and independent security
 review remain separate gates.
+
+
+## Short overview or detailed evidence
+
+`packet-investigator dns capture.pcapng` shows up to ten transaction summaries,
+prioritizing findings and incomplete transactions. Transaction findings are shown
+separately (up to 50), so findings outside the overview are not silently hidden.
+Each omitted count is explicit. IDs and endpoints wrap rather than being shortened.
+
+Use `packet-investigator dns capture.pcapng --details` for per-transaction evidence,
+including answer summaries, matching, timing and limitations, up to 100 transactions.
+The same flag expands DNS in `investigate`. For all retained data without terminal
+limits, use `--json`; `--details --json` emits the same complete JSON.

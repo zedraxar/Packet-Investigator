@@ -114,6 +114,13 @@ def investigate(
         bool,
         typer.Option("--json", help="Emit only machine-readable JSON."),
     ] = False,
+    details: Annotated[
+        bool,
+        typer.Option(
+            "--details",
+            help="Include per-transaction DNS evidence (up to 100 transactions).",
+        ),
+    ] = False,
 ) -> None:
     """Run capture quality, TCP, and classic DNS in one local investigation."""
     try:
@@ -124,7 +131,7 @@ def investigate(
     if json_output:
         typer.echo(report.model_dump_json(indent=2))
     else:
-        render_investigation_rich(report)
+        render_investigation_rich(report, details=details)
     raise typer.Exit(code=report.exit_code)
 
 
@@ -336,6 +343,13 @@ def dns(
         bool,
         typer.Option("--json", help="Emit only machine-readable JSON."),
     ] = False,
+    details: Annotated[
+        bool,
+        typer.Option(
+            "--details",
+            help="Include per-transaction DNS evidence (up to 100 transactions).",
+        ),
+    ] = False,
 ) -> None:
     """Analyze deterministic classic DNS transaction evidence in a capture."""
     try:
@@ -358,7 +372,7 @@ def dns(
     if json_output:
         typer.echo(render_dns_transactions_json(report), nl=False)
     else:
-        render_dns_transactions_rich(report)
+        render_dns_transactions_rich(report, details=details)
 
     raise typer.Exit(code=_dns_exit_code(report.status))
 

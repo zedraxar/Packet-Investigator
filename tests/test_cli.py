@@ -208,6 +208,7 @@ def test_dns_command_registration_and_help() -> None:
     assert "capture_path" in command.stdout
     dns_params = get_command(cli.app).commands["dns"].params
     assert any("--json" in param.opts for param in dns_params)
+    assert any("--details" in param.opts for param in dns_params)
     assert "--timeout" not in command.stdout
     assert "--include-path" not in command.stdout
 
@@ -248,7 +249,7 @@ def test_dns_rich_pipeline_calls_public_boundaries(
         capture_quality_status=quality_assessment.status,
         capture_quality_limitation_codes=("DNS_CAPTURE_POINT_LIMITATION",),
     )
-    rich_mock.assert_called_once_with(report)
+    rich_mock.assert_called_once_with(report, details=False)
     json_mock.assert_not_called()
     assert result.stdout == ""
 
@@ -406,3 +407,26 @@ def test_dns_repeated_json_output_is_deterministic(
     second = runner.invoke(cli.app, ["dns", "synthetic.pcapng", "--json"])
     assert first.exit_code == second.exit_code == 0
     assert first.stdout == second.stdout
+
+
+@pytest.mark.parametrize("details", [False, True])
+@pytest.mark.parametrize("json_output", [False, True])
+def test_dns_details_is_presentation_only(
+    monkeypatch: pytest.MonkeyPatch, details: bool, json_output: bool
+) -> None:
+    pipeline = _mock_dns_pipeline(monkeypatch)
+    report, rich_mock, json_mock = pipeline[4], pipeline[-2], pipeline[-1]
+    args = ["dns", "synthetic.pcapng"]
+    if details:
+        args.append("--details")
+    if json_output:
+        args.append("--json")
+    result = runner.invoke(cli.app, args)
+    assert result.exit_code == 0
+    if json_output:
+        assert json.loads(result.stdout) == report.model_dump(mode="json")
+        rich_mock.assert_not_called()
+        json_mock.assert_called_once_with(report)
+    else:
+        rich_mock.assert_called_once_with(report, details=details)
+        json_mock.assert_not_called()

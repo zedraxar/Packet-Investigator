@@ -33,6 +33,7 @@ def _rich(report) -> str:
     stream = io.StringIO()
     render_dns_transactions_rich(
         report,
+        details=True,
         console=Console(
             file=stream,
             force_terminal=False,

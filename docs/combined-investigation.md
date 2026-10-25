@@ -52,3 +52,27 @@ cached answers, other protocols, and unobserved exchanges remain possible.
 There is no desktop file selector, HTML export, packet matching between
 captures, technical ownership assignment, or root-cause conclusion in this
 increment. Select the file by supplying its local path.
+
+
+## Terminal detail level
+
+The DNS section defaults to findings plus up to ten transaction summaries.
+Summaries prioritize transactions with findings or incomplete evidence, then ID.
+Transaction findings are shown independently of that preview, up to 50 findings,
+with explicit omission counts. Use the detailed view for per-transaction matching,
+answers, timing, provenance and limitations:
+
+```powershell
+.\.venv\Scripts\packet-investigator.exe investigate capture.pcapng --details
+```
+
+The detailed terminal DNS view retains its 100-transaction limit and follows the
+report's original transaction order. The preview does not change analysis, status,
+exit codes or JSON. `investigate capture.pcapng --json` includes every retained
+transaction and conversation, even beyond terminal limits; combining `--details`
+with `--json` emits exactly the same complete JSON.
+
+TCP and DNS overviews use compact blocks at all widths, retaining full IDs and
+endpoints while wrapping naturally. TCP retains its existing limits of 20 summaries
+and five detailed conversations. `--details` expands DNS only; it does not change
+these TCP limits. Any terminal omissions remain explicit.

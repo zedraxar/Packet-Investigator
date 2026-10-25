@@ -28,10 +28,11 @@ from tests.dns_report_samples import (
 )
 
 
-def _rich(report: DNSAnalysisReport, *, width: int = 160) -> str:
+def _rich(report: DNSAnalysisReport, *, width: int = 160, details: bool = True) -> str:
     stream = io.StringIO()
     render_dns_transactions_rich(
         report,
+        details=details,
         console=Console(
             file=stream,
             force_terminal=False,
@@ -357,3 +358,116 @@ def test_retry_summary_explains_overlapping_sources_only_when_present(
     if retry_count:
         assert "TShark-marked messages" in output
         assert "tshark_derived=2" in output
+
+
+def _normal_transactions(count: int):
+    return tuple(
+        make_transaction(
+            serial,
+            status=DNSTransactionStatus.COMPLETE,
+            response_code=0,
+            findings=(),
+            recommendations=(),
+        )
+        for serial in range(1, count + 1)
+    )
+
+
+def test_default_dns_overview_is_short_prioritizes_findings_and_keeps_json() -> None:
+    problem = make_transaction(
+        21,
+        response_count=0,
+        status=DNSTransactionStatus.PARTIAL,
+        findings=(make_finding("DNS_QUERY_WITHOUT_RESPONSE_OBSERVED"),),
+        answers=(),
+    )
+    report = make_report(transactions=(*_normal_transactions(20), problem), findings=())
+    before = render_dns_transactions_json(report)
+    compact = _rich(report, details=False)
+    detailed = _rich(report, details=True)
+    assert "Transaction findings" in compact
+    assert "DNS_QUERY_WITHOUT_RESPONSE_OBSERVED" in compact
+    assert "dns-000021" in compact
+    assert "Representative frames:" in compact
+    assert "Transaction details" not in compact
+    assert "Query observations:" not in compact
+    assert "Showing 10 of 21 transaction summaries; 11 omitted." in compact
+    assert "--details" in compact and "--json" in compact
+    assert "Transaction details" in detailed
+    assert "Query observations:" in detailed
+    assert len(compact.splitlines()) < len(detailed.splitlines()) / 2
+    assert render_dns_transactions_json(report) == before
+    assert len(json.loads(before)["transactions"]) == 21
+
+
+def test_default_dns_findings_beyond_overview_are_not_silently_lost() -> None:
+    transactions = tuple(make_transaction(i) for i in range(1, 61))
+    output = " ".join(
+        _rich(make_report(transactions=transactions), details=False).split()
+    )
+    assert "dns-000050" in output
+    assert "dns-000051" not in output
+    assert "Showing 50 of 60 transaction findings; 10 omitted." in output
+    assert "Showing 10 of 60 transaction summaries; 50 omitted." in output
+
+
+@pytest.mark.parametrize("width", [80, 100, 120, 160, 180])
+@pytest.mark.parametrize("ipv6", [False, True])
+def test_default_dns_summary_preserves_ids_and_endpoints(
+    width: int, ipv6: bool
+) -> None:
+    from ipaddress import IPv6Address
+
+    from packet_investigator.models.dns_transactions import DNSEndpoint
+
+    transactions = list(_normal_transactions(8))
+    if ipv6:
+        for index, transaction in enumerate(transactions):
+            requester = DNSEndpoint(
+                ip_version=6,
+                address=IPv6Address("2001:db8:1234:5678:90ab:cdef:1234:5678"),
+                port=50000 + index,
+            )
+            responder = DNSEndpoint(
+                ip_version=6,
+                address=IPv6Address("2001:db8:4321:8765:90ab:cdef:4321:8765"),
+                port=53,
+            )
+            identity = transaction.identity.model_copy(
+                update={"requester": requester, "responder": responder}
+            )
+            transactions[index] = transaction.model_copy(
+                update={
+                    "identity": identity,
+                    "evidence": transaction.evidence.model_copy(
+                        update={"identity": identity}
+                    ),
+                }
+            )
+    report = make_report(transactions=tuple(transactions), findings=())
+    output = _rich(report, width=width, details=False)
+    summary = output.split("Transaction summary", 1)[1]
+    for transaction in transactions:
+        assert transaction.identity.transaction_id in summary
+        for endpoint in [
+            transaction.identity.requester,
+            transaction.identity.responder,
+        ]:
+            address = str(endpoint.address)
+            display = (
+                f"[{address}]:{endpoint.port}" if ipv6 else f"{address}:{endpoint.port}"
+            )
+            assert display in summary
+    assert "…" not in summary
+    assert max(map(len, output.splitlines())) <= width
+
+
+def test_empty_default_dns_report_does_not_offer_nonexistent_details() -> None:
+    report = make_report(
+        status=DNSAnalysisStatus.INSUFFICIENT, transactions=(), findings=()
+    )
+    output = _rich(report, details=False)
+    assert "INSUFFICIENT" in output
+    assert "Transaction details" not in output
+    assert "Transaction summary" not in output
+    assert "--details" not in output
