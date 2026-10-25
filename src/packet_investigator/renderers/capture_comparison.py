@@ -12,8 +12,10 @@ from packet_investigator.models.capture_file_comparison import (
 from packet_investigator.renderers.capture_quality import render_capture_quality_rich
 
 
-def render_capture_comparison_rich(report: CaptureFileComparisonReport) -> None:
-    output = Console()
+def render_capture_comparison_rich(
+    report: CaptureFileComparisonReport, *, console: Console | None = None
+) -> None:
+    output = console if console is not None else Console()
     output.print(Text("Packet Investigator — Two-capture TCP comparison", style="bold"))
     output.print(Text(f"Status: {report.status.upper()}"))
     output.print(

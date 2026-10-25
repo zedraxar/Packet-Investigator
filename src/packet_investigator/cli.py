@@ -1,7 +1,9 @@
 """Command-line interface for Packet Investigator."""
 
+from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal, DecimalException, localcontext
+from io import StringIO
 from pathlib import Path
 from typing import Annotated
 
@@ -45,6 +47,7 @@ from packet_investigator.renderers.capture_comparison import (
     render_capture_comparison_rich,
 )
 from packet_investigator.renderers.investigation import render_investigation_rich
+from packet_investigator.report_output import ReportOutputError, write_new_report
 from packet_investigator.utils.formatting import format_file_size
 
 app = typer.Typer(
@@ -58,6 +61,7 @@ app = typer.Typer(
         "Use packet-investigator compare LEFT RIGHT for two-capture TCP evidence "
         "with explicit clock assumptions.\n\n"
         "Each capture command accepts --json for machine-readable output. "
+        "Use --output FILE to save a report without overwriting existing files. "
         "For command options, run packet-investigator COMMAND --help "
         "(for example, packet-investigator dns --help).\n\n"
         "Captures are processed locally with TShark. Reports describe observed "
@@ -121,6 +125,13 @@ def investigate(
             help="Include per-transaction DNS evidence (up to 100 transactions).",
         ),
     ] = False,
+    output_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            help="Save to a new report file; never overwrite an existing path.",
+        ),
+    ] = None,
 ) -> None:
     """Run capture quality, TCP, and classic DNS in one local investigation."""
     try:
@@ -128,7 +139,16 @@ def investigate(
     except CaptureInspectionError as error:
         typer.echo(f"Error: {_safe_capture_error(error, capture_path)}", err=True)
         raise typer.Exit(code=_exit_code(error)) from error
-    if json_output:
+    if output_path is not None:
+        _save_report(
+            output_path,
+            json_output=json_output,
+            render_json=lambda: report.model_dump_json(indent=2),
+            render_text=lambda console: render_investigation_rich(
+                report, details=details, console=console
+            ),
+        )
+    elif json_output:
         typer.echo(report.model_dump_json(indent=2))
     else:
         render_investigation_rich(report, details=details)
@@ -207,6 +227,13 @@ def compare(
     json_output: Annotated[
         bool, typer.Option("--json", help="Emit only machine-readable JSON.")
     ] = False,
+    output_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            help="Save to a new report file; never overwrite an existing path.",
+        ),
+    ] = None,
 ) -> None:
     """Compare two offline captures with explicit clock assumptions."""
     try:
@@ -236,7 +263,16 @@ def compare(
         message = _safe_capture_error(CaptureInspectionError(message), right)
         typer.echo(f"Error: {message}", err=True)
         raise typer.Exit(code=_exit_code(error)) from error
-    if json_output:
+    if output_path is not None:
+        _save_report(
+            output_path,
+            json_output=json_output,
+            render_json=lambda: report.model_dump_json(indent=2),
+            render_text=lambda console: render_capture_comparison_rich(
+                report, console=console
+            ),
+        )
+    elif json_output:
         typer.echo(report.model_dump_json(indent=2))
     else:
         render_capture_comparison_rich(report)
@@ -253,6 +289,13 @@ def inspect(
         bool,
         typer.Option("--json", help="Emit only machine-readable JSON."),
     ] = False,
+    output_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            help="Save to a new report file; never overwrite an existing path.",
+        ),
+    ] = None,
 ) -> None:
     """Inspect basic capture and packet-boundary metadata."""
     try:
@@ -261,6 +304,14 @@ def inspect(
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(code=_exit_code(error)) from error
 
+    if output_path is not None:
+        _save_report(
+            output_path,
+            json_output=json_output,
+            render_json=lambda: metadata.model_dump_json(),
+            render_text=lambda console: _render_inspection(metadata, console=console),
+        )
+        return
     if json_output:
         typer.echo(metadata.model_dump_json())
         return
@@ -278,6 +329,13 @@ def quality(
         bool,
         typer.Option("--json", help="Emit only machine-readable JSON."),
     ] = False,
+    output_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            help="Save to a new report file; never overwrite an existing path.",
+        ),
+    ] = None,
 ) -> None:
     """Assess whether a capture is suitable for further investigation."""
     try:
@@ -288,7 +346,16 @@ def quality(
         raise typer.Exit(code=_exit_code(error)) from error
 
     assessment = analyze_capture_quality(metadata, collection)
-    if json_output:
+    if output_path is not None:
+        _save_report(
+            output_path,
+            json_output=json_output,
+            render_json=lambda: render_capture_quality_json(assessment),
+            render_text=lambda console: render_capture_quality_rich(
+                assessment, console=console
+            ),
+        )
+    elif json_output:
         typer.echo(render_capture_quality_json(assessment))
     else:
         render_capture_quality_rich(assessment)
@@ -306,6 +373,13 @@ def tcp(
         bool,
         typer.Option("--json", help="Emit only machine-readable JSON."),
     ] = False,
+    output_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            help="Save to a new report file; never overwrite an existing path.",
+        ),
+    ] = None,
 ) -> None:
     """Analyze deterministic TCP conversation evidence in a capture."""
     try:
@@ -325,7 +399,16 @@ def tcp(
             limitation.code for limitation in quality_assessment.limitations
         ),
     )
-    if json_output:
+    if output_path is not None:
+        _save_report(
+            output_path,
+            json_output=json_output,
+            render_json=lambda: render_tcp_conversations_json(report),
+            render_text=lambda console: render_tcp_conversations_rich(
+                report, console=console
+            ),
+        )
+    elif json_output:
         typer.echo(render_tcp_conversations_json(report))
     else:
         render_tcp_conversations_rich(report)
@@ -350,6 +433,13 @@ def dns(
             help="Include per-transaction DNS evidence (up to 100 transactions).",
         ),
     ] = False,
+    output_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            help="Save to a new report file; never overwrite an existing path.",
+        ),
+    ] = None,
 ) -> None:
     """Analyze deterministic classic DNS transaction evidence in a capture."""
     try:
@@ -369,7 +459,16 @@ def dns(
             limitation.code for limitation in quality_assessment.limitations
         ),
     )
-    if json_output:
+    if output_path is not None:
+        _save_report(
+            output_path,
+            json_output=json_output,
+            render_json=lambda: render_dns_transactions_json(report),
+            render_text=lambda console: render_dns_transactions_rich(
+                report, details=details, console=console
+            ),
+        )
+    elif json_output:
         typer.echo(render_dns_transactions_json(report), nl=False)
     else:
         render_dns_transactions_rich(report, details=details)
@@ -377,8 +476,10 @@ def dns(
     raise typer.Exit(code=_dns_exit_code(report.status))
 
 
-def _render_inspection(metadata: CaptureMetadata) -> None:
-    console = Console()
+def _render_inspection(
+    metadata: CaptureMetadata, *, console: Console | None = None
+) -> None:
+    console = console if console is not None else Console()
     table = Table(
         title="Packet Investigator — Capture Inspection",
         show_header=False,
@@ -469,3 +570,34 @@ def _safe_capture_error(error: CaptureInspectionError, capture_path: Path) -> st
     message = str(error)
     resolved = str(capture_path.expanduser().resolve(strict=False))
     return message.replace(resolved, capture_path.name)
+
+
+def _save_report(
+    destination: Path,
+    *,
+    json_output: bool,
+    render_json: Callable[[], str],
+    render_text: Callable[[Console], None],
+) -> None:
+    """Keep rendering and file errors separate from analysis status handling."""
+    if json_output:
+        content = render_json()
+    else:
+        stream = StringIO()
+        render_text(
+            Console(
+                file=stream,
+                width=120,
+                force_terminal=False,
+                color_system=None,
+                highlight=False,
+            )
+        )
+        content = stream.getvalue()
+    if not content.endswith("\n"):
+        content += "\n"
+    try:
+        write_new_report(destination, content)
+    except ReportOutputError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error

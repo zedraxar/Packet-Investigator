@@ -76,3 +76,11 @@ TCP and DNS overviews use compact blocks at all widths, retaining full IDs and
 endpoints while wrapping naturally. TCP retains its existing limits of 20 summaries
 and five detailed conversations. `--details` expands DNS only; it does not change
 these TCP limits. Any terminal omissions remain explicit.
+
+
+## Save the result
+
+Add `--output report.txt` to save the current readable view, or
+`--json --output report.json` for the full structured report. Existing destination
+paths are never overwritten. See [saving reports](saving-reports.md) for encoding,
+exit codes, privacy and failure behavior.

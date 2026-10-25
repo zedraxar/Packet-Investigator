@@ -12,10 +12,13 @@ from packet_investigator.renderers.tcp_conversations import (
 
 
 def render_investigation_rich(
-    report: InvestigationReport, *, details: bool = False
+    report: InvestigationReport,
+    *,
+    details: bool = False,
+    console: Console | None = None,
 ) -> None:
     """Show completeness followed by the unmodified component evidence."""
-    output = Console()
+    output = console if console is not None else Console()
     output.print(
         Text("Packet Investigator — Single-capture Investigation", style="bold")
     )

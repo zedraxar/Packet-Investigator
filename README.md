@@ -370,6 +370,24 @@ terminal widths.
 For a practical interpretation and privacy checklist, see the
 [DNS troubleshooting quickstart](docs/dns-troubleshooting-quickstart.md).
 
+## Save a report
+
+All capture-report commands (`investigate`, `quality`, `tcp`, `dns`, `inspect`,
+and `compare`) accept `--output`:
+
+```powershell
+packet-investigator investigate capture.pcapng --output report.txt
+packet-investigator investigate capture.pcapng --json --output report.json
+packet-investigator dns capture.pcapng --details --output dns-details.txt
+```
+
+The destination must be a new file in an existing writable folder. Existing files,
+directories and links are refused, including capture files; choose another filename
+to save another report. Text is plain UTF-8 at 120 columns, without terminal colors.
+`--json` selects complete structured output regardless of the filename extension.
+Saving does not also print the report to stdout, and analysis exit codes are preserved.
+See [saved report behavior](docs/saving-reports.md) for limits and failure handling.
+
 ## Privacy guidance
 
 Packet captures can contain credentials, personal data, internal addresses, and
