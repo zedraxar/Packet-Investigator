@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from click.utils import strip_ansi
 from pydantic import ValidationError
 from typer.testing import CliRunner
 
@@ -134,12 +135,20 @@ def test_stage_errors_emit_no_partial_json(
     assert "Traceback" not in result.output
 
 
-def test_validation_error_and_help(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("color", [False, True])
+def test_validation_error_and_help(
+    monkeypatch: pytest.MonkeyPatch, color: bool
+) -> None:
     run = Mock(side_effect=CaptureValidationError("Unsupported capture extension"))
     monkeypatch.setattr(cli, "investigate_capture", run)
-    help_result = runner.invoke(cli.app, ["investigate", "--help"])
+    help_result = runner.invoke(
+        cli.app,
+        ["investigate", "--help"],
+        color=color,
+        env={"FORCE_COLOR": "1"} if color else {},
+    )
     assert help_result.exit_code == 0
-    assert "--details" in help_result.stdout
+    assert "--details" in strip_ansi(help_result.stdout)
     run.assert_not_called()
     result = runner.invoke(cli.app, ["investigate", "sample.txt", "--json"])
     assert result.exit_code == 2
