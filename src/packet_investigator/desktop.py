@@ -1,7 +1,7 @@
 """Native desktop entry point; imported only by the optional GUI launcher."""
 
 import ctypes
-import os
+import sys
 import tkinter as tk
 import webbrowser
 from pathlib import Path
@@ -226,7 +226,7 @@ def main() -> None:
     # Inno Setup checks this named mutex before upgrade/uninstall.
     kernel = None
     handle = None
-    if os.name == "nt":
+    if sys.platform == "win32":
         kernel = ctypes.WinDLL("kernel32", use_last_error=True)
         kernel.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p]
         kernel.CreateMutexW.restype = ctypes.c_void_p
