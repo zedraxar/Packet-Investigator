@@ -137,7 +137,9 @@ def test_stage_errors_emit_no_partial_json(
 def test_validation_error_and_help(monkeypatch: pytest.MonkeyPatch) -> None:
     run = Mock(side_effect=CaptureValidationError("Unsupported capture extension"))
     monkeypatch.setattr(cli, "investigate_capture", run)
-    assert runner.invoke(cli.app, ["investigate", "--help"]).exit_code == 0
+    help_result = runner.invoke(cli.app, ["investigate", "--help"])
+    assert help_result.exit_code == 0
+    assert "--details" in help_result.stdout
     run.assert_not_called()
     result = runner.invoke(cli.app, ["investigate", "sample.txt", "--json"])
     assert result.exit_code == 2
@@ -211,3 +213,27 @@ def test_real_combined_dns(tmp_path: Path, scenario: str) -> None:
     assert report.dns.transactions
     assert result.exit_code == report.exit_code
     assert "path" not in json.loads(result.stdout)["dns"]["capture"]
+
+
+@pytest.mark.parametrize("details", [False, True])
+@pytest.mark.parametrize("json_output", [False, True])
+def test_combined_details_changes_only_terminal_dns_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+    details: bool,
+    json_output: bool,
+) -> None:
+    report = _report()
+    monkeypatch.setattr(cli, "investigate_capture", Mock(return_value=report))
+    args = ["investigate", "sample.pcapng"]
+    if details:
+        args.append("--details")
+    if json_output:
+        args.append("--json")
+    result = runner.invoke(cli.app, args)
+    assert result.exit_code == report.exit_code
+    if json_output:
+        assert result.stdout == report.model_dump_json(indent=2) + "\n"
+    else:
+        assert ("Transaction details" in result.stdout) is details
+        assert "DNS_RESPONSE_CODE_OBSERVED" in result.stdout
+        assert "TCP Conversation Analysis" in result.stdout

@@ -25,7 +25,7 @@ _TRANSACTION_LIMIT = 100
 _FINDING_LIMIT = 50
 _LIMITATION_LIMIT = 50
 _RECOMMENDATION_LIMIT = 25
-_NARROW_CONSOLE_WIDTH = 100
+_SUMMARY_LIMIT = 10
 _RCODE_LABELS = {
     0: "NOERROR",
     1: "FORMERR",
@@ -40,10 +40,16 @@ def render_dns_transactions_rich(
     report: DNSAnalysisReport,
     *,
     console: Console | None = None,
+    details: bool = False,
 ) -> None:
     """Render an immutable DNS analysis report to a Rich console."""
     output = console if console is not None else Console()
-    transactions = report.transactions[:_TRANSACTION_LIMIT]
+    ordered = tuple(sorted(report.transactions, key=_transaction_priority))
+    transactions = (
+        report.transactions[:_TRANSACTION_LIMIT]
+        if details
+        else ordered[:_SUMMARY_LIMIT]
+    )
 
     output.print(Text("Packet Investigator — DNS Transaction Analysis", style="bold"))
     output.print(Text(f"Capture: {report.capture.filename}", style="bold"))
@@ -57,24 +63,32 @@ def render_dns_transactions_rich(
     _print_capture_summary(output, report)
     _print_report_summary(output, report, len(transactions))
 
+    if not details:
+        _print_transaction_findings(output, ordered)
     if transactions:
         _print_section(output, "Transaction summary")
-        if output.width < _NARROW_CONSOLE_WIDTH:
-            _print_compact_transactions(output, transactions)
-        else:
-            output.print(_transaction_table(transactions))
+        _print_compact_transactions(output, transactions)
         if len(transactions) < len(report.transactions):
+            label = "transactions" if details else "transaction summaries"
             output.print(
                 f"Showing {len(transactions)} of "
-                f"{len(report.transactions)} transactions; "
+                f"{len(report.transactions)} {label}; "
                 f"{len(report.transactions) - len(transactions)} omitted."
             )
-
-        _print_section(output, "Transaction details")
-        for index, transaction in enumerate(transactions):
-            if index:
-                output.print()
-            _print_transaction(output, transaction)
+        if details:
+            _print_section(output, "Transaction details")
+            for index, transaction in enumerate(transactions):
+                if index:
+                    output.print()
+                _print_transaction(output, transaction)
+        else:
+            output.print(
+                Text(
+                    "Use --details for per-transaction evidence "
+                    "(up to 100 transactions); "
+                    "--json contains all retained transactions."
+                )
+            )
 
     if report.findings:
         _print_section(output, "Aggregate findings")
@@ -168,7 +182,7 @@ def _print_report_summary(
             (
                 ("Transactions", f"{len(report.transactions):,}"),
                 ("Analyzed transactions", f"{analyzed:,}"),
-                ("Displayed transactions", f"{displayed_transactions:,}"),
+                ("Overview transactions", f"{displayed_transactions:,}"),
                 ("Transaction findings", f"{transaction_findings:,}"),
                 ("Aggregate findings", f"{len(report.findings):,}"),
                 ("Limitations", f"{len(report.limitations):,}"),
@@ -215,37 +229,43 @@ def _print_report_summary(
         )
 
 
-def _transaction_table(
+def _transaction_priority(transaction: DNSTransactionAssessment) -> tuple[int, str]:
+    return (
+        0 if transaction.findings or transaction.status.value != "complete" else 1,
+        transaction.identity.transaction_id,
+    )
+
+
+def _print_transaction_findings(
+    console: Console,
     transactions: tuple[DNSTransactionAssessment, ...],
-) -> Table:
-    table = Table(show_lines=False, expand=False)
-    for label in (
-        "ID",
-        "Requester → responder",
-        "Transport",
-        "DNS ID",
-        "Query",
-        "Type/class",
-        "Responses",
-        "Timing",
-        "Status",
-    ):
-        table.add_column(label)
+) -> None:
+    total = sum(len(item.findings) for item in transactions)
+    if not total:
+        return
+    _print_section(console, "Transaction findings")
+    shown = 0
     for transaction in transactions:
+        if shown >= _FINDING_LIMIT:
+            break
+        if not transaction.findings:
+            continue
         identity = transaction.identity
-        evidence = transaction.evidence
-        table.add_row(
-            identity.transaction_id,
-            f"{_endpoint(identity.requester)} → {_endpoint(identity.responder)}",
-            identity.transport.value.upper(),
-            str(identity.dns_id),
-            identity.query.display_name,
-            f"{identity.query.query_type}/{identity.query.query_class}",
-            _response_code_counts(evidence.response_code_counts),
-            _duration(evidence.elapsed_to_first_response_seconds),
-            _label(transaction.status.value),
+        console.print(
+            Text(
+                f"{identity.transaction_id} — {identity.query.display_name}",
+                style="bold",
+            )
         )
-    return table
+        console.print(
+            Text(f"{_endpoint(identity.requester)} → {_endpoint(identity.responder)}")
+        )
+        for finding in transaction.findings:
+            if shown >= _FINDING_LIMIT:
+                break
+            _print_finding(console, finding)
+            shown += 1
+    _print_omitted(console, "transaction findings", total, _FINDING_LIMIT)
 
 
 def _print_compact_transactions(

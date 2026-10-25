@@ -11,7 +11,9 @@ from packet_investigator.renderers.tcp_conversations import (
 )
 
 
-def render_investigation_rich(report: InvestigationReport) -> None:
+def render_investigation_rich(
+    report: InvestigationReport, *, details: bool = False
+) -> None:
     """Show completeness followed by the unmodified component evidence."""
     output = Console()
     output.print(
@@ -33,4 +35,4 @@ def render_investigation_rich(report: InvestigationReport) -> None:
     output.print()
     render_tcp_conversations_rich(report.tcp, console=output)
     output.print()
-    render_dns_transactions_rich(report.dns, console=output)
+    render_dns_transactions_rich(report.dns, console=output, details=details)
