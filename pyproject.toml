@@ -29,7 +29,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+pdf = ["reportlab==4.4.9"]
 dev = [
+    "pypdf==6.21.2",
+    "reportlab==4.4.9",
     "click",
     "mypy",
     "pytest",

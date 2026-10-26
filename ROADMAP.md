@@ -119,6 +119,20 @@ This does not establish packet identity, loss, latency, topology, ownership, NAT
 translation, or multi-point correlation. It is a development preview, not release
 approval. Cross-version and independent review gates remain open.
 
+## Engineer-centered workflow preview (in review)
+
+The next desktop increment adds optional symptom/target/client/capture-point
+context, an engineer-first brief, a technical-evidence view, and graphical PDF
+export. Hostname-derived TCP relevance is explicitly a candidate selection,
+not proof of website/process identity or a DNS-to-TCP causal link. User context
+guides scope and priority; it cannot predetermine a diagnosis or health score.
+
+The brief separates observed facts, uncertainty and next capture steps while
+preserving the complete underlying evidence and existing JSON. See
+[the scoped design](docs/specs/focused-engineer-brief.md) and
+[usage and limits](docs/engineer-brief.md). This is a development preview,
+not release, cross-version, or clean-machine acceptance.
+
 ## Future work
 
 Future phases require separate engineering specifications and approval. Possible

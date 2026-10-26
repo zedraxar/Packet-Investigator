@@ -85,3 +85,10 @@ review, clean-machine installation, upgrade/uninstall acceptance, and display
 scaling/accessibility coverage are separate gates; a successful build or current
 machine smoke test does not prove those complete. Real-capture testing remains
 deferred. See the [approved design](specs/windows-desktop-preview.md).
+
+## Engineer brief preview
+
+The next desktop increment adds optional investigation context, a focused
+engineer-summary view and local PDF brief export. See
+[the engineer brief guide](engineer-brief.md). Existing technical evidence
+and JSON stay available; context guides relevance, not conclusions.

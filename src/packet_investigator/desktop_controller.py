@@ -11,6 +11,12 @@ from pathlib import Path
 
 from rich.console import Console
 
+from packet_investigator.engineer_brief import (
+    EngineerBrief,
+    InvestigationContext,
+    build_engineer_brief,
+    render_engineer_brief_text,
+)
 from packet_investigator.investigation import InvestigationReport, investigate_capture
 from packet_investigator.parsers.tshark import (
     CaptureValidationError,
@@ -31,6 +37,8 @@ class Completion:
     executable: str | None = None
     version: str | None = None
     report: InvestigationReport | None = None
+    brief: EngineerBrief | None = None
+    summary: str = ""
     compact: str = ""
     detailed: str = ""
     error: str | None = None
@@ -92,6 +100,9 @@ class DesktopController:
         self.executable: str | None = None
         self.version: str | None = None
         self.report: InvestigationReport | None = None
+        self.context = InvestigationContext()
+        self.brief: EngineerBrief | None = None
+        self.summary = ""
         self.compact = ""
         self.detailed = ""
         self.busy = False
@@ -115,8 +126,24 @@ class DesktopController:
 
     def _clear_report(self) -> None:
         self.report = None
+        self.brief = None
+        self.summary = ""
         self.compact = self.detailed = ""
         self.error = None
+
+    def invalidate_context(self) -> None:
+        """An edited question cannot leave a savable stale answer."""
+        if self.busy:
+            raise RuntimeError("An operation is already running.")
+        self._clear_report()
+        self.status = "Context changed. Investigate again to refresh the report."
+
+    def set_context(self, context: InvestigationContext) -> None:
+        if self.busy:
+            raise RuntimeError("An operation is already running.")
+        if context != self.context:
+            self.invalidate_context()
+            self.context = context
 
     def select_capture(self, path: Path) -> None:
         if self.busy:
@@ -170,14 +197,17 @@ class DesktopController:
         if not self.can_investigate:
             raise RuntimeError("Choose a capture and configure TShark first.")
         assert self.capture is not None and self.executable is not None
-        capture, executable = self.capture, self.executable
+        capture, executable, context = self.capture, self.executable, self.context
         self._clear_report()
 
         def analyze() -> Completion:
             report = self._investigate(capture, executable)
+            brief = build_engineer_brief(report, context)
             return Completion(
                 "analysis",
                 report=report,
+                brief=brief,
+                summary=render_engineer_brief_text(brief),
                 compact=render_text(report),
                 detailed=render_text(report, details=True),
             )
@@ -185,16 +215,35 @@ class DesktopController:
         self._start("analysis", analyze)
 
     def save(
-        self, destination: Path, *, json_output: bool, details: bool = False
+        self,
+        destination: Path,
+        *,
+        json_output: bool,
+        details: bool = False,
+        pdf_output: bool = False,
+        summary: bool = False,
     ) -> None:
         if not self.can_save:
             raise RuntimeError("Complete an investigation before saving.")
         assert self.report is not None
-        report = self.report
-        text = self.detailed if details else self.compact
+        report, brief = self.report, self.brief
+        if pdf_output and json_output:
+            raise ValueError("Choose one output format.")
+        text = self.summary if summary else self.detailed if details else self.compact
 
         def export() -> Completion:
-            content = report.model_dump_json(indent=2) + "\n" if json_output else text
+            content: str | bytes
+            if pdf_output:
+                from packet_investigator.renderers.engineer_pdf import (
+                    render_engineer_pdf,
+                )
+
+                assert brief is not None
+                content = render_engineer_pdf(brief)
+            else:
+                content = (
+                    report.model_dump_json(indent=2) + "\n" if json_output else text
+                )
             write_new_report(destination, content)
             return Completion("save")
 
@@ -219,6 +268,7 @@ class DesktopController:
             )
         elif event.kind == "analysis":
             self.report = event.report
+            self.brief, self.summary = event.brief, event.summary
             self.compact, self.detailed = event.compact, event.detailed
             assert self.report is not None
             self.status = (
