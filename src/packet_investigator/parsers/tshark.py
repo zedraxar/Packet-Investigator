@@ -7,6 +7,7 @@ import queue
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 from collections.abc import Callable, Collection, Iterable, Sequence
@@ -101,6 +102,7 @@ def get_tshark_version(executable: str, timeout: float) -> str:
             errors="replace",
             timeout=timeout,
             check=False,
+            creationflags=_creation_flags(),
         )
     except subprocess.TimeoutExpired as error:
         raise TsharkTimeoutError(
@@ -137,6 +139,7 @@ def get_tshark_field_capabilities(
             errors="replace",
             timeout=timeout,
             check=False,
+            creationflags=_creation_flags(),
         )
     except subprocess.TimeoutExpired as error:
         raise TsharkTimeoutError(
@@ -275,6 +278,7 @@ def stream_tshark_fields[ResultT](
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            creationflags=_creation_flags(),
             text=True,
             encoding="utf-8",
             errors="replace",
@@ -479,3 +483,8 @@ def _interface_sort_key(interface_id: str) -> tuple[int, int | str]:
         return (0, int(interface_id))
     except ValueError:
         return (1, interface_id)
+
+
+def _creation_flags() -> int:
+    """Keep TShark probes and streams hidden in a Windows desktop launch."""
+    return getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0

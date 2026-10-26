@@ -86,6 +86,13 @@ remain available. Each capture-report command supports `--json` and `--output`.
 Use `COMMAND --help` to see its options. The [full first-run walkthrough](docs/local-cli-first-run.md)
 covers installation checks, report interpretation, saved files and common errors.
 
+## Windows desktop preview
+
+An approved desktop preview provides **Choose capture → Investigate → Save text/JSON**
+using the existing engine, with a per-user Windows installer build. Python is
+bundled; TShark is installed separately. See the [desktop usage and build guide](docs/windows-desktop-preview.md)
+for the unsigned preview, prerequisites and remaining installer acceptance gates.
+
 ## Development environment
 
 For contributor work, install the checkout in editable mode:

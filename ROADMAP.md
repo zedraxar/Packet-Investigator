@@ -119,6 +119,20 @@ This does not establish packet identity, loss, latency, topology, ownership, NAT
 translation, or multi-point correlation. It is a development preview, not release
 approval. Cross-version and independent review gates remain open.
 
+## Engineer-centered workflow preview (in review)
+
+The next desktop increment adds optional symptom/target/client/capture-point
+context, an engineer-first brief, a technical-evidence view, and graphical PDF
+export. Hostname-derived TCP relevance is explicitly a candidate selection,
+not proof of website/process identity or a DNS-to-TCP causal link. User context
+guides scope and priority; it cannot predetermine a diagnosis or health score.
+
+The brief separates observed facts, uncertainty and next capture steps while
+preserving the complete underlying evidence and existing JSON. See
+[the scoped design](docs/specs/focused-engineer-brief.md) and
+[usage and limits](docs/engineer-brief.md). This is a development preview,
+not release, cross-version, or clean-machine acceptance.
+
 ## Future work
 
 Future phases require separate engineering specifications and approval. Possible
@@ -144,3 +158,11 @@ builder, finding engine, and TCP analyzer as separate later phases. Phase 5
 instead delivered a focused, bounded TCP subsystem using the approved hybrid
 conversation-identity design. Those earlier milestone numbers are superseded;
 their useful concepts may be reconsidered only through a new specification.
+
+## Windows desktop preview
+
+The user approved the [desktop and installer design](docs/specs/windows-desktop-preview.md).
+The implementation branch provides a native capture picker, background investigation,
+existing report rendering and safe exports, plus an unsigned per-user Windows
+installer build. See [usage and remaining acceptance gates](docs/windows-desktop-preview.md).
+This is a development preview, not release approval.

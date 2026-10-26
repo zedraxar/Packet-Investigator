@@ -18,7 +18,7 @@ def _publish_report(temporary: Path, destination: Path) -> None:
         os.link(temporary, destination)
 
 
-def write_new_report(destination: Path, content: str) -> None:
+def write_new_report(destination: Path, content: str | bytes) -> None:
     """Stage UTF-8/LF content, then atomically publish only to a new path."""
     temporary: Path | None = None
     try:
@@ -27,9 +27,9 @@ def write_new_report(destination: Path, content: str) -> None:
             if destination.exists() or destination.is_symlink():
                 raise FileExistsError
             with tempfile.NamedTemporaryFile(
-                mode="w",
-                encoding="utf-8",
-                newline="\n",
+                mode="wb" if isinstance(content, bytes) else "w",
+                encoding=None if isinstance(content, bytes) else "utf-8",
+                newline=None if isinstance(content, bytes) else "\n",
                 delete=False,
                 prefix=".packet-investigator-",
                 suffix=".tmp",

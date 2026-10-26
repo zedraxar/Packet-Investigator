@@ -427,7 +427,9 @@ def test_public_collector_requests_only_supported_checksum_fields(
     capture.touch()
     captured_fields: tuple[str, ...] = ()
 
-    monkeypatch.setattr(capture_quality, "find_tshark", lambda: "/usr/bin/tshark")
+    monkeypatch.setattr(
+        capture_quality, "find_tshark", lambda executable="tshark": "/usr/bin/tshark"
+    )
     monkeypatch.setattr(
         capture_quality,
         "get_tshark_field_capabilities",
